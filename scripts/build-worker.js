@@ -38,6 +38,7 @@ const HEADERS = {
   "cache-control": "public, max-age=300",
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",
+  "x-robots-tag": "noindex, nofollow",   // demos are shared by direct link only
 };
 export default {
   async fetch(request) {
@@ -47,7 +48,7 @@ export default {
       return Response.redirect(url.origin + path + "/" + url.search, 301);
     }
     const body = PAGES[path];
-    if (!body) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } });
+    if (!body) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain", "x-robots-tag": "noindex" } });
     return new Response(request.method === "HEAD" ? null : body, { headers: HEADERS });
   },
 };

@@ -4,12 +4,18 @@ Click-through demos of AI tools for local businesses. Every demo is a single `in
 with inline CSS and JS: no build step, no dependencies, no API keys. Open it in a browser,
 or host the folder anywhere static (GitHub Pages, Netlify, Cloudflare Pages).
 
-Start at [`index.html`](index.html), the landing page that links every demo.
+Each client gets only their own direct link. The root page deliberately lists no demos (so one
+client can't see another's), and every page is marked `noindex` so search engines skip them.
+
+| Client | Link to send |
+| --- | --- |
+| CLC Tree Services | https://warder-demos.pages.dev/demos/ai-receptionist/clc-tree-services/ |
+| NZ Systems | https://warder-demos.pages.dev/demos/ai-receptionist/nz-systems/ |
 
 ## Layout
 
 ```
-index.html                         Landing page (edit the DEMOS list to add a card)
+index.html                         Root page: no client list, on purpose
 demos/
   ai-receptionist/                 One folder per kind of demo
     clc-tree-services/index.html   One folder per client (PRESENTING.md alongside: walkthrough script)
@@ -44,7 +50,7 @@ tests/
    name (`receptionist.name`, used everywhere), colours, the demo scenarios (greeting, day and
    time, one-tap sample answers), the intake flows (questions, summary fields, closing lines),
    urgency rules and guardrail answers. The engine below `CONFIG` doesn't need to change.
-3. Add a card for it to the `DEMOS` list in the root `index.html`.
+3. Add its link to the table at the top of this README (not to the root page).
 4. Run the tests against it (below).
 
 Use only details the client publishes themselves (number, address, services, service area),
@@ -85,5 +91,4 @@ Live at https://warder-demos.pages.dev/ (Cloudflare Pages project `warder-demos`
 CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... npm run deploy
 ```
 
-New demos under `demos/<kind>/<client>/index.html` are picked up automatically; add a card for
-them in the root `index.html`.
+New demos under `demos/<kind>/<client>/index.html` are picked up automatically.

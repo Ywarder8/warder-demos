@@ -4,103 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14382b">
+<meta name="robots" content="noindex, nofollow">
 <title>Warder Demos</title>
-<meta name="description" content="Click-through demos of AI tools built for local businesses.">
-<meta property="og:title" content="Warder Demos">
-<meta property="og:description" content="Click-through demos of AI tools built for local businesses.">
+<meta name="description" content="Private demos of AI tools built for local businesses.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232e7a59'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='700' fill='%23fff' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E">
 <style>
   :root {
-    --brand-800: #14382b; --brand-700: #1d4d3b; --brand-500: #2e7a59; --brand-300: #8cc9a6;
-    --char-950: #141618; --char-900: #1b1e21; --char-800: #23272b; --char-700: #2d3237;
-    --text: #edf2ee; --muted: #9ea9a3;
+    --brand-800: #14382b; --brand-500: #2e7a59; --brand-300: #8cc9a6;
+    --char-950: #141618; --text: #edf2ee; --muted: #9ea9a3;
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; min-height: 100vh; font-family: var(--font); color: var(--text);
-    background: var(--char-950);
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    font-family: var(--font); color: var(--text); background: var(--char-950);
     background-image: radial-gradient(1000px 500px at 50% -10%, rgba(46,122,89,.2), transparent 60%);
     -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 880px; margin: 0 auto; padding: 56px 16px 64px; }
-  h1 { margin: 0 0 8px; font-size: clamp(28px, 6vw, 40px); letter-spacing: -.5px; }
-  .lede { margin: 0 0 40px; color: var(--muted); font-size: 17px; max-width: 560px; line-height: 1.5; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--brand-300); margin: 0 0 14px; font-weight: 700; }
-  section + section { margin-top: 40px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-  a.demo {
-    display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: inherit;
-    background: var(--char-900); border: 1px solid var(--char-800); border-radius: 16px; padding: 18px;
-    transition: border-color .15s ease, transform .15s ease, background .15s ease;
-  }
-  a.demo:hover { border-color: var(--brand-500); background: #1e2226; transform: translateY(-2px); }
-  a.demo:focus-visible { outline: 2px solid var(--brand-300); outline-offset: 3px; }
-  .top { display: flex; align-items: center; gap: 12px; }
+  main { max-width: 440px; padding: 32px 16px; text-align: center; }
   .badge {
-    flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
-    background: linear-gradient(145deg, var(--brand-500), var(--brand-800)); font-weight: 800; font-size: 13px;
+    width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 18px; display: grid; place-items: center;
+    background: linear-gradient(145deg, var(--brand-500), var(--brand-800)); font-weight: 800; font-size: 24px;
   }
-  .title { font-weight: 650; font-size: 16.5px; }
-  .where { color: var(--muted); font-size: 13.5px; }
-  .desc { color: #c9d2cd; font-size: 14.5px; line-height: 1.5; margin: 0; }
-  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tag { font-size: 12px; color: var(--brand-300); border: 1px solid var(--brand-700); border-radius: 999px; padding: 3px 9px; }
-  footer { margin-top: 56px; color: var(--muted); font-size: 13px; }
-  @media (prefers-reduced-motion: reduce) { a.demo { transition: none; } a.demo:hover { transform: none; } }
+  h1 { margin: 0 0 10px; font-size: 28px; letter-spacing: -.3px; }
+  p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.55; }
 </style>
 </head>
 <body>
 <main>
+  <div class="badge" aria-hidden="true">W</div>
   <h1>Warder Demos</h1>
-  <p class="lede">Click-through demos of AI tools built for local businesses. Each one runs entirely in the browser: no sign-up, no API keys.</p>
-  <div id="sections"></div>
-  <footer>Add a demo: put it in <code>demos/&lt;category&gt;/&lt;client&gt;/index.html</code> and add an entry to the list in this page.</footer>
+  <!-- Client demos are deliberately not listed here: each client gets only their own direct link.
+       The full list lives in README.md. -->
+  <p>Demos of AI tools built for local businesses. Each demo is shared privately by direct link.</p>
 </main>
-<script>
-  // One entry per demo. Grouped by category on the page.
-  const DEMOS = [
-    {
-      category: "AI Receptionist",
-      title: "CLC Tree Services",
-      where: "London, Ontario",
-      badge: "CLC",
-      href: "demos/ai-receptionist/clc-tree-services/",
-      desc: "Ava answers the main line when the team can't: a Sunday-morning storm emergency flagged URGENT, and a routine free-estimate request.",
-      tags: ["Tree service", "Emergency intake", "Free estimates", "Voice"],
-    },
-    {
-      category: "AI Receptionist",
-      title: "NZ Systems",
-      where: "London, Ontario",
-      badge: "NZ",
-      href: "demos/ai-receptionist/nz-systems/",
-      desc: "Appliance repair. Ava answers when the shop is closed, evenings and weekends: a Saturday fridge failure flagged PRIORITY, and a routine washer call for the next business day.",
-      tags: ["Appliance repair", "After hours", "Gas safety", "Voice"],
-    },
-  ];
-
-  const root = document.getElementById("sections");
-  [...new Set(DEMOS.map((d) => d.category))].forEach((cat) => {
-    const sec = document.createElement("section");
-    const h = document.createElement("h2"); h.textContent = cat;
-    const grid = document.createElement("div"); grid.className = "grid";
-    DEMOS.filter((d) => d.category === cat).forEach((d) => {
-      const a = document.createElement("a");
-      a.className = "demo";
-      // Link straight to index.html so it also works when opened from disk.
-      a.href = d.href.replace(/\/?$/, "/index.html");
-      a.innerHTML = '<div class="top"><div class="badge"></div><div><div class="title"></div><div class="where"></div></div></div><p class="desc"></p><div class="tags"></div>';
-      a.querySelector(".badge").textContent = d.badge;
-      a.querySelector(".title").textContent = d.title;
-      a.querySelector(".where").textContent = d.where;
-      a.querySelector(".desc").textContent = d.desc;
-      d.tags.forEach((t) => { const s = document.createElement("span"); s.className = "tag"; s.textContent = t; a.querySelector(".tags").appendChild(s); });
-      grid.appendChild(a);
-    });
-    sec.append(h, grid);
-    root.appendChild(sec);
-  });
-</script>
 </body>
 </html>

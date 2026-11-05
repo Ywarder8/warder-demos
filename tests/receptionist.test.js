@@ -351,12 +351,9 @@ async function layout(browser) {
   }
   const { page, errors } = await newPage(browser);
   await page.goto(LANDING);
-  const hrefs = await page.$$eval("a.demo", (a) => a.map((x) => x.href));
-  ok(hrefs.length > 0, "landing page lists demos");
-  for (const h of hrefs) {
-    const resp = await page.goto(h).catch(() => null);
-    ok(resp && (await page.title()).length > 0, "landing link works: " + h);
-  }
+  ok((await page.$$("a")).length === 0, "root page lists no client demos");
+  ok(!/CLC|NZ Systems/.test(await page.content()), "root page names no clients");
+  ok((await page.getAttribute('meta[name="robots"]', "content")) === "noindex, nofollow", "root page is noindex");
   ok(errors.length === 0, "landing page has no errors");
   await page.close();
 }
