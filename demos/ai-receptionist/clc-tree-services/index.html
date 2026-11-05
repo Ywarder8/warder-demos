@@ -245,6 +245,7 @@
     display: flex; flex-direction: column; align-items: center;
     padding: 24px 16px 32px; gap: 18px;
   }
+  .end h1:focus { outline: none; }
   .end h1 { margin: 0; font-size: 20px; text-align: center; }
   .end .lede { margin: -8px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
   .phone {
@@ -272,10 +273,15 @@
     padding: 10px 13px; font-size: 14.5px; line-height: 1.42;
     white-space: pre-wrap; word-wrap: break-word;
   }
-  .sms .urgent-tag {
-    display: inline-block; background: var(--urgent); color: #fff; font-weight: 800; letter-spacing: .6px;
-    border-radius: 6px; padding: 2px 7px; margin-bottom: 6px; font-size: 13px;
+  /* Banner across the top of the crew's text: red URGENT, amber storm call, none for estimates */
+  .sms-banner {
+    margin: -10px -13px 8px; padding: 8px 13px; border-radius: 18px 18px 0 0;
+    font-weight: 800; letter-spacing: 1px; font-size: 14px; color: #fff; white-space: normal;
   }
+  .sms-banner.urgent { background: var(--urgent); font-size: 16px; letter-spacing: 1.5px; }
+  .sms-banner.storm { background: #a14a07; }
+  .sms-reasons { margin: -4px 0 8px; font-weight: 650; white-space: normal; }
+  .sms.sms-urgent { box-shadow: 0 0 0 2px var(--urgent); }
   .sms b { font-weight: 650; }
   .nowrap { white-space: nowrap; }
   .delivered { align-self: flex-end; color: #5f636a; font-size: 11.5px; margin-right: 4px; }
@@ -351,7 +357,7 @@
 
   <!-- End screen -->
   <section class="end" id="end" hidden>
-    <h1>The crew's phone just buzzed</h1>
+    <h1 id="endTitle" tabindex="-1">The crew's phone just buzzed</h1>
     <p class="lede" id="endLede"></p>
     <div class="phone" aria-label="Text message mockup">
       <div class="screen">
@@ -455,21 +461,31 @@ const CONFIG = {
     // ---------------- storm / emergency ----------------
     emergency: {
       heading: "Storm damage call",
+      banner: "STORM DAMAGE",                  // amber banner on the crew's text when not urgent
+      priority: { urgent: "URGENT", normal: "Standard" },
+      // Closing safety line: the downed-lines warning only when lines are down or the caller is unsure.
+      safety: {
+        lines: "In the meantime, please stay clear of the tree and any downed lines.",
+        tree: "In the meantime, please stay clear of the tree.",
+        linesWhen: { key: "powerLines", values: ["Yes", "Not sure"] },
+      },
       greetingReply: {
         detected: "I'm sorry to hear that. Sounds like {phrase}. Let me get a few details for the crew.",
         afterGuardrail: "Let me get a few details for the crew.",
         default: "I can help with that. Let me get a few details for the crew.",
       },
       closing: {
-        normal: "Thanks, {first}. I've sent this summary to the crew, and someone from {business} will call you back at {phone}. In the meantime, please stay clear of the tree and any downed lines.",
-        urgent: "Thanks, {first}. I've sent this summary to the crew and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. Please stay clear of the tree and any downed lines.",
+        normal: "Thanks, {first}. I've sent this summary to the crew, and someone from {business} will call you back at {phone}. {safety}",
+        urgent: "Thanks, {first}. I've sent this summary to the crew and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. {safety}",
       },
       fields: [
+        { label: "Priority", key: "priority" },
         { label: "Caller", key: "name" },
         { label: "Number", key: "phone" },
         { label: "Address", key: "address" },
         { label: "What happened", key: "incident" },
         { label: "Damage", key: "damage" },
+        { label: "Power lines", key: "powerLines" },
         { label: "Injuries", key: "injuries" },
         { label: "Backup", key: "backup" },
       ],
@@ -499,19 +515,38 @@ const CONFIG = {
           key: "damage",
           label: "Damage",
           type: "multi",
-          prompt: "Did it hit a house, a car, or power lines?",
+          prompt: "Did it hit a house or a car?",
           preselectFromSpeech: true, // things the caller already mentioned start ticked (they can untick)
           hint: "Pick all that apply, then tap Continue.",
-          retry: "Sorry, did it hit a house, a car, or power lines? Or none of those?",
+          retry: "Sorry, did it hit a house or a car? Or neither?",
           ack: "Thanks.",
-          placeholder: "House, car, power lines, or none…",
+          placeholder: "House, car, or neither…",
           freeform: true,
           options: [
             { label: "House", match: /\b(house|home|roof|garage|deck|porch|building|shed|cottage)\b/i },
             { label: "Car", match: /\b(cars?|vehicles?|truck|van|suv|driveway)\b/i },
-            { label: "Power lines", match: /\b(power|hydro|electric(al)?|wires?|lines?|cables?)\b/i },
-            { label: "None of those", none: true, summary: "No house, car or power lines hit",
+            { label: "Neither", none: true, summary: "No house or car hit",
               match: /\b(no|none|nothing|neither|didn'?t|did not|missed|just the (yard|lawn|road|street))\b/i },
+          ],
+        },
+        {
+          key: "powerLines",
+          label: "Power lines",
+          type: "choice",
+          prompt: "Are any power lines down or involved?",
+          retry: "Sorry, are any power lines down or involved? Yes, no, or not sure?",
+          placeholder: "Yes, no, or not sure…",
+          freeform: false,
+          askOnConflict: true,
+          options: [
+            { label: "Yes, lines are down", value: "Yes", summary: "YES, down or involved",
+              match: /\b(yes|yeah|yep|yup|down|sparking|touching|on the (lines?|wires?)|hit the (lines?|wires?)|involved)\b/i,
+              unless: /\b(no|not|aren'?t|isn'?t|none|nothing)\b[^.,!?]*\b(down|lines?|wires?|involved)\b|\b(not sure|unsure|don'?t know|no idea)\b/i },
+            { label: "No lines involved", value: "No", summary: "None involved",
+              match: /\b(no|nope|nah|none|no lines?|not involved)\b/i,
+              unless: /\b(no idea|not sure)\b/i },
+            { label: "Not sure", value: "Not sure", summary: "Not sure, crew to check",
+              match: /\b(not sure|unsure|don'?t know|dunno|maybe|can'?t tell|no idea|possibly|might be)\b/i },
           ],
         },
         {
@@ -552,6 +587,7 @@ const CONFIG = {
     // ---------------- free estimate ----------------
     estimate: {
       heading: "Free estimate request",
+      priority: { urgent: "URGENT", normal: "Routine" },
       greetingReply: {
         detected: "Happy to help with {phrase}. Estimates are free, so I'll take a few details for the arborist.",
         afterGuardrail: "Let me take a few details for the arborist.",
@@ -562,6 +598,7 @@ const CONFIG = {
         urgent: "Thanks, {first}. I've sent this to the team and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. Please stay clear of the tree and any downed lines.",
       },
       fields: [
+        { label: "Priority", key: "priority" },
         { label: "Caller", key: "name" },
         { label: "Number", key: "phone" },
         { label: "Address", key: "address" },
@@ -654,10 +691,14 @@ const CONFIG = {
     label: "URGENT",
     banner: "URGENT · Crew being notified",
     rules: [
-      { key: "damage", includes: "Power lines", reason: "Power lines involved" },
+      { key: "damage", includes: "House", reason: "Tree hit a house" },
+      { key: "damage", includes: "Car", reason: "Tree hit a car" },
+      { key: "powerLines", equals: "Yes", reason: "Power lines involved" },
       { key: "injuries", equals: "Yes", reason: "Someone is hurt" },
     ],
-    callerMessage: "I'm marking this call <b>URGENT</b>, and the crew will be notified right away. Please stay clear of the tree and any downed lines.",
+    // Followed by the flow's safety line (downed lines only mentioned when lines are down or unknown).
+    callerMessage: "I'm marking this call <b>URGENT</b>, and the crew will be notified right away.",
+    callerSafety: { lines: "Please stay clear of the tree and any downed lines.", tree: "Please stay clear of the tree." },
     // Scanned on everything the caller says during the intake, so "the power lines are down"
     // or "my husband is hurt" in the first sentence flags the call immediately.
     // `answers` pre-fills a question so the receptionist doesn't ask something the caller already told her.
@@ -665,7 +706,7 @@ const CONFIG = {
       { reason: "Power lines involved",
         match: /\b(power|hydro|electric(al)?)\s*(lines?|wires?|cables?|poles?)\b|\b(downed|live|sparking)\s+(lines?|wires?)\b|\b(wires?|lines?)\s+(are\s+|is\s+)?(down|sparking)\b/i,
         unless: /\b(no|not|didn'?t|did not|missed|nowhere near|away from|clear of)\b[^.,!?]*\b(power|hydro|lines?|wires?)\b/i,
-        preselect: { key: "damage", value: "Power lines" } },
+        answers: { key: "powerLines", value: "Yes" } },
       { reason: "Someone is hurt",
         match: /\b(is|are|was|were|got|been|'s|'re)\s+(badly\s+|really\s+|very\s+)?(hurt|injured|bleeding|trapped|pinned)\b|\b(need|call(ed)?)\s+an?\s+ambulance\b/i,
         unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t)\b[^.,!?]*\b(hurt|injured|bleeding|trapped|pinned)\b/i,
@@ -689,7 +730,7 @@ const CONFIG = {
   guardrails: [
     { id: "ai",
       match: /\b(are|r) (you|u) (an? )?(ai|a\.i\.|bot|robot|machine|computer|real|human|person|live|recording)\b|\bis (this|that) (an? )?(ai|bot|robot|real person|human|recording|machine)\b|\b(real|live|actual) (person|human)\b|\bai\b|\bchat ?bot\b/i,
-      reply: "Yes, I'm an AI receptionist for {business}. I take down your details and pass them straight to the team." },
+      reply: "I'm an AI receptionist for {business}. I take down your details and pass them straight to the team." },
     { id: "price",
       // "free estimate" is a request, not a price question, so estimate/quote aren't in here.
       match: /\b(price|prices|pricing|cost|costs|how much|charge|rates?|fees?|expensive|cheap|afford)\b|\$/i,
@@ -807,6 +848,22 @@ const CONFIG = {
       || voices.find((x) => x.lang.toLowerCase().startsWith(lang.slice(0, 2))) || null;
   }
   if (synth) { pickVoice(); synth.addEventListener?.("voiceschanged", pickVoice); }
+  // Browsers only allow speech after a user gesture, so the Call button primes the engine with a
+  // silent utterance; Ava's greeting can then speak after the ring.
+  function primeSpeech() {
+    if (!synth || !voiceOn) return;
+    try {
+      synth.cancel();
+      if (synth.resume) synth.resume();
+      pickVoice();
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      synth.speak(u);
+    } catch (e) {}
+  }
+  // Track the current line so a blocked or silent engine never stalls the call.
+  let speaking = null;
+  let speechBlocked = false;   // set when a line never starts; later lines don't wait until one plays
   function speak(text) {
     if (!synth || !voiceOn) return;
     // Read phone numbers digit by digit, and don't spell out "AI".
@@ -817,13 +874,21 @@ const CONFIG = {
     if (chosenVoice) u.voice = chosenVoice;
     u.lang = (chosenVoice && chosenVoice.lang) || V.lang || "en-CA";
     u.rate = V.rate || 1; u.pitch = V.pitch || 1;
+    const state = speaking = { started: false, done: false, t0: Date.now(), budget: 2500 + spoken.length * 90 };
+    u.onstart = () => { state.started = true; speechBlocked = false; };
+    u.onend = u.onerror = () => { state.done = true; };
     synth.speak(u);
   }
-  function hush() { if (synth) synth.cancel(); }
+  function hush() { if (synth) synth.cancel(); if (speaking) speaking.done = true; }
   async function untilQuiet(maxMs = 15000) {
-    if (!synth || !voiceOn) return;
-    const t0 = Date.now();
-    while ((synth.speaking || synth.pending) && Date.now() - t0 < maxMs) await wait(120);
+    if (!synth || !voiceOn || !speaking || speechBlocked) return;
+    const st = speaking;
+    while (!st.done) {
+      const age = Date.now() - st.t0;
+      if (!st.started && age > 1500) { speechBlocked = true; break; }   // blocked or no voices: stop waiting
+      if (age > Math.min(maxMs, st.budget)) break;   // never hang on an engine that forgets to finish
+      await wait(120);
+    }
   }
   function setVoice(on) {
     voiceOn = on;
@@ -1060,8 +1125,26 @@ const CONFIG = {
     });
     return answered;
   }
+  // Mention downed lines only if the caller said lines are down or isn't sure (or hasn't been asked yet
+  // and the flow has no power-lines question).
+  function linesInPlay() {
+    const w = FLOW.safety && FLOW.safety.linesWhen;
+    if (!w) return true;
+    const v = S.raw[w.key];
+    return v == null ? !STEPS.some((st) => st.key === w.key) || S.idx > STEPS.findIndex((st) => st.key === w.key) : w.values.includes(v);
+  }
+  function urgentMessage() {
+    const sf = CONFIG.urgent.callerSafety;
+    const linesKnown = S.raw.powerLines != null;
+    const safety = sf ? (linesKnown && linesInPlay() ? sf.lines : sf.tree) : "";
+    return fill(CONFIG.urgent.callerMessage + (safety ? " " + safety : ""));
+  }
+  function closingSafety() {
+    if (!FLOW.safety) return "";
+    return linesInPlay() ? FLOW.safety.lines : FLOW.safety.tree;
+  }
   async function announceUrgentIfNew() {
-    if (refreshUrgent()) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
+    if (refreshUrgent()) await say(urgentMessage(), { html: true, cls: "alert" });
   }
   function nextUnanswered(i) {
     while (i < STEPS.length && S.raw[STEPS[i].key] != null) i++;
@@ -1077,10 +1160,14 @@ const CONFIG = {
 
   /* ---------- summary ---------- */
   function summaryRows() {
+    if (FLOW.priority) S.answers.priority = S.urgentReasons.length ? FLOW.priority.urgent : FLOW.priority.normal;
     return FLOW.fields
       .filter((f) => f.key !== "area" || S.answers.area)
-      .map((f) => ({ label: f.label, value: S.answers[f.key] || "—" }));
+      .map((f) => ({ key: f.key, label: f.label, value: S.answers[f.key] || "—" }));
   }
+
+  // The in-chat read-back shows what the caller told Ava; the priority line is for the crew's text only.
+  const readBackRows = () => summaryRows().filter((r) => r.key !== "priority");
 
   /* ---------- service area ---------- */
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1130,11 +1217,11 @@ const CONFIG = {
     if (areaOutside) await say(fill(CONFIG.serviceArea.outside));
     if (S.editing) {
       S.editing = null;
-      if (newly) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
+      if (newly) await say(urgentMessage(), { html: true, cls: "alert" });
       return goConfirm();
     }
     if (step.ack) await say(fill(step.ack));
-    if (newly) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
+    if (newly) await say(urgentMessage(), { html: true, cls: "alert" });
     S.idx = nextUnanswered(S.idx + 1);
     if (S.idx < STEPS.length) await askStep(STEPS[S.idx]);
     else await goConfirm();
@@ -1212,15 +1299,15 @@ const CONFIG = {
       f.textContent = CONFIG.urgent.label + ": " + S.urgentReasons.join(", ");
       dl.appendChild(f);
     }
-    summaryRows().forEach(({ label, value }) => {
+    readBackRows().forEach(({ label, value }) => {
       const dt = document.createElement("dt"); dt.textContent = label;
       const dd = document.createElement("dd"); dd.textContent = value;
       dl.append(dt, dd);
     });
     card.appendChild(dl);
-    S.log.push({ who: "agent", text: "[Read back] " + summaryRows().map((x) => x.label + ": " + x.value).join("; ") });
+    S.log.push({ who: "agent", text: "[Read back] " + readBackRows().map((x) => x.label + ": " + x.value).join("; ") });
     addRow("agent", card);
-    speak(summaryRows().map((x) => x.label + ", " + x.value).join(". "));
+    speak(readBackRows().map((x) => x.label + ", " + x.value).join(". "));
     await say(fill(CONFIG.confirm.question));
     renderChips([{ label: CONFIG.confirm.yesLabel, yes: true }, { label: CONFIG.confirm.noLabel, no: true }]);
     setComposer(true, "Yes, or tell me what to fix…");
@@ -1282,7 +1369,7 @@ const CONFIG = {
   async function finish() {
     S.phase = "done";
     clearChips(); setComposer(false, "Call ended");
-    await say(fill(S.urgentReasons.length ? FLOW.closing.urgent : FLOW.closing.normal));
+    await say(fill(S.urgentReasons.length ? FLOW.closing.urgent : FLOW.closing.normal, { safety: closingSafety() }).trim());
     await untilQuiet(20000);
     stopTimer();
     sys("Call ended · " + mmss(Date.now() - S.start));
@@ -1322,6 +1409,18 @@ const CONFIG = {
     const tick = () => { els.headSub.textContent = CONFIG.business.shortName + " · " + mmss(Date.now() - S.start); };
     tick(); timer = setInterval(tick, 1000);
   }
+  // "Start over" goes back to the scenario picker.
+  function goToIntro() {
+    ++runId;
+    hush(); stopListening(); stopTimer();
+    reset();
+    els.call.hidden = true; els.end.hidden = true; els.intro.hidden = false;
+    els.chat.innerHTML = ""; clearChips(); setComposer(false);
+    const sel = document.querySelector('.pick[aria-checked="true"]');
+    if (sel) sel.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+
   function stopTimer() { if (timer) clearInterval(timer); timer = null; els.liveDot.classList.add("off"); }
 
   async function startCall() {
@@ -1397,9 +1496,13 @@ const CONFIG = {
     $("smsTitle").textContent = fill(CONFIG.summary.title);
     $("smsSub").textContent = fill(CONFIG.summary.subtitle);
     const body = $("smsBody");
+    const urgent = S.urgentReasons.length > 0;
+    body.className = "sms " + (urgent ? "sms-urgent" : FLOW.banner ? "sms-storm" : "sms-plain");
     let html = "";
-    if (S.urgentReasons.length) {
-      html += `<span class="urgent-tag">${escapeHtml(CONFIG.urgent.label)}</span>\n${escapeHtml(S.urgentReasons.join(" · "))}\n\n`;
+    if (urgent) {
+      html += `<div class="sms-banner urgent">${escapeHtml(CONFIG.urgent.label)}</div><div class="sms-reasons">${escapeHtml(S.urgentReasons.join(" · "))}</div>`;
+    } else if (FLOW.banner) {
+      html += `<div class="sms-banner storm">${escapeHtml(FLOW.banner)}</div>`;
     }
     html += `<b>${escapeHtml(summaryHeading())}</b>\n`;
     const keepPhone = (h) => h.replace(/\(\d{3}\) \d{3}-\d{4}/g, (m) => `<span class="nowrap">${m}</span>`);
@@ -1407,7 +1510,9 @@ const CONFIG = {
     html += `\n\n${escapeHtml(fill(CONFIG.summary.footer))}`;
     body.innerHTML = html;
     els.end.scrollTop = 0;
-    $("restartEnd").focus({ preventScroll: true });
+    // Focus the heading (announced by screen readers), not Start over, so a stray Enter
+    // from the last answer can't skip the text the caller just reached.
+    $("endTitle").focus({ preventScroll: true });
   }
 
   function reset() {
@@ -1452,9 +1557,9 @@ const CONFIG = {
 
   if (FAST) window.__receptionist = { state: () => S, config: CONFIG, steps: () => STEPS, scenario: () => scenario.id, checkArea };
 
-  $("callBtn").addEventListener("click", startCall);
-  $("restartTop").addEventListener("click", startCall);
-  $("restartEnd").addEventListener("click", startCall);
+  $("callBtn").addEventListener("click", () => { primeSpeech(); startCall(); });
+  $("restartTop").addEventListener("click", goToIntro);
+  $("restartEnd").addEventListener("click", goToIntro);
   $("copyBtn").addEventListener("click", copySummary);
   if (synth) {
     els.voiceBtn.hidden = false;

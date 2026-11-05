@@ -76,7 +76,7 @@ async function startServer() {
   }
   // Walk to a given step in a flow using typed answers.
   const ROUTE = {
-    "Storm emergency": { first: "A big tree came down in the storm last night", answers: { damage: "nothing", injuries: "no", name: "Jo Park", address: "1 Oak St, London", phone: "5195550100", backup: "no" } },
+    "Storm emergency": { first: "A big tree came down in the storm last night", answers: { damage: "nothing", powerLines: "no", injuries: "no", name: "Jo Park", address: "1 Oak St, London", phone: "5195550100", backup: "no" } },
     "Free estimate": { first: "I'd like a free estimate for pruning", answers: { details: "two maples", name: "Jo Park", address: "1 Oak St, London", phone: "5195550100", bestTime: "mornings" } },
   };
   async function goTo(scenarioTitle, key, firstText) {
@@ -135,6 +135,7 @@ async function startServer() {
   console.log("Question chips");
   const choiceCases = [
     ["Storm emergency", "incident", "A tree is in trouble", ["Tree down", "Limb down", "Tree leaning"]],
+    ["Storm emergency", "powerLines", null, ["Yes, lines are down", "No lines involved", "Not sure"]],
     ["Storm emergency", "injuries", null, ["Yes, someone is hurt", "No one is hurt"]],
     ["Free estimate", "service", "Hi there", ["Pruning & maintenance", "Tree removal", "Plant health care", "Consulting", "Land clearing", "Firewood"]],
     ["Free estimate", "bestTime", null, ["Mornings", "Afternoons", "Evenings", "Any time"]],
@@ -146,7 +147,7 @@ async function startServer() {
       await tapChip(label); await ready();
       const s = await W();
       ok(await callerCount() === before + 1, `${key}: "${label}" posts one reply`);
-      ok(s.answers[key] && (s.answers[key].startsWith(label) || /YES|No one/.test(s.answers[key])), `${key}: "${label}" recorded (${s.answers[key]})`);
+      ok(s.answers[key] && (s.answers[key].startsWith(label) || /YES|No one|None involved|crew to check/.test(s.answers[key])), `${key}: "${label}" recorded (${s.answers[key]})`);
       ok(s.phase !== "step" || (await steps())[s.idx] !== key, `${key}: "${label}" moves to the next question`);
     }
   }
@@ -165,15 +166,17 @@ async function startServer() {
   ok(await cont(), "damage: Continue disabled until something is picked");
   await tapChip("House"); ok(!(await cont()), "damage: Continue enabled after a pick");
   await tapChip("House"); ok(await cont(), "damage: tapping again unticks");
-  await tapChip("House"); await tapChip("Car"); await tapChip("None of those");
+  ok(!(await page.$$eval(".chip", (n) => n.map((x) => x.textContent))).includes("Power lines"), "damage: power lines is no longer in the house/car question");
+  await tapChip("House"); await tapChip("Car"); await tapChip("Neither");
   let pressed = await page.$$eval('.chip[aria-pressed="true"]', (n) => n.map((x) => x.textContent));
-  ok(pressed.length === 1 && pressed[0] === "None of those", "damage: 'None of those' clears other picks");
+  ok(pressed.length === 1 && pressed[0] === "Neither", "damage: 'Neither' clears other picks");
   await tapChip("Car");
   pressed = await page.$$eval('.chip[aria-pressed="true"]', (n) => n.map((x) => x.textContent));
-  ok(pressed.length === 1 && pressed[0] === "Car", "damage: picking a damage clears 'None of those'");
-  await tapChip("Power lines"); await tapChip("Continue"); await ready();
+  ok(pressed.length === 1 && pressed[0] === "Car", "damage: picking a damage clears 'Neither'");
+  await tapChip("Continue"); await ready();
   let s = await W();
-  ok(s.answers.damage === "Car, Power lines" && s.urgentReasons.length === 1, "damage: Continue submits picks and power lines flags URGENT");
+  ok(s.answers.damage === "Car" && s.urgentReasons.includes("Tree hit a car"), "damage: Continue submits picks and a car hit flags URGENT");
+  ok((await steps())[s.idx] === "powerLines", "damage is followed by the power-lines question");
 
   // sample answer + skip chips walk a whole call with no typing
   console.log("One-tap sample answers");
@@ -232,8 +235,10 @@ async function startServer() {
   ok((await callerCount()) === 1, "send button submits typed text");
   await page.fill("#input", "   "); await page.tap("#send");
   ok((await callerCount()) === 1, "send ignores a blank message");
-  await page.tap("#restartTop"); await ready();
-  ok((await callerCount()) === 0 && /this is Ava/.test(await lastAgent()), "restart button starts a fresh call mid-call");
+  await page.tap("#restartTop");
+  ok(await page.isVisible("#intro") && await page.isHidden("#call"), "restart button mid-call returns to the scenario picker");
+  await page.tap("#callBtn"); await ready();
+  ok((await callerCount()) === 0 && /this is Ava/.test(await lastAgent()), "Call after restart starts a fresh call");
   ok(await page.isVisible("#mic"), "mic button shown");
   await page.evaluate(() => window.__recQueue.push("a big limb fell on my car"));
   await page.tap("#mic");
@@ -246,24 +251,26 @@ async function startServer() {
   await page.evaluate(() => { const c = document.querySelector(".chip.primary"); c.click(); c.click(); });
   await ready();
   ok((await callerCount()) === 2, "double-tapping Continue only answers once");
-  await page.evaluate(() => { const b = [...document.querySelectorAll(".chip")].find((x) => x.textContent === "No one is hurt"); b.click(); b.click(); });
+  await page.evaluate(() => { const b = [...document.querySelectorAll(".chip")].find((x) => x.textContent === "No lines involved"); b.click(); b.click(); });
   await ready();
   ok((await callerCount()) === 3, "double-tapping an answer only answers once");
 
   /* ---------------- end screen ---------------- */
   console.log("End screen buttons");
-  for (const a of ["Jo Park", "1 Oak St, London", "5195550100", "no", "yes"]) await type(a);
+  for (const a of ["no", "Jo Park", "1 Oak St, London", "5195550100", "no", "yes"]) await type(a);
   await page.waitForSelector("#end:not([hidden])");
   await page.tap("#copyBtn");
   await page.waitForFunction(() => /Copied|Couldn't/.test(document.getElementById("copyBtn").textContent));
   ok((await page.innerText("#copyBtn")) === "Copied", "copy button copies");
   const clip = await page.evaluate(() => navigator.clipboard.readText());
-  ok(/Storm damage call/.test(clip) && /Caller: Jo Park/.test(clip) && /Number: \(519\) 555-0100/.test(clip), "copied text is the crew summary");
+  ok(/Storm damage call/.test(clip) && /Caller: Jo Park/.test(clip) && /Number: \(519\) 555-0100/.test(clip) && /Priority: URGENT/.test(clip), "copied text is the crew summary");
   await page.tap(".transcript summary");
   ok(await page.$eval(".transcript", (d) => d.open), "transcript opens");
   ok((await page.$$("#transcript p")).length > 8, "transcript has the call");
-  await page.tap("#restartEnd"); await ready();
-  ok(!(await page.isVisible("#end")) && /this is Ava/.test(await lastAgent()), "Start over begins a new call");
+  await page.tap("#restartEnd");
+  ok(await page.isVisible("#intro") && !(await page.isVisible("#end")) && !(await page.isVisible("#call")), "Start over returns to the scenario picker");
+  await page.tap(".pick >> nth=1");
+  ok((await page.getAttribute(".pick >> nth=1", "aria-checked")) === "true", "a different scenario can be picked after Start over");
 
   /* ---------------- tap target sizes ---------------- */
   console.log(`Tap targets (≥ ${MIN_TAP}px)`);
@@ -277,8 +284,8 @@ async function startServer() {
   await page.goto(url); await measure("intro");
   await page.tap("#callBtn"); await ready(); await measure("greeting");
   await type("A big tree came down in the storm last night"); await ready(); await measure("multi-select");
-  await tapChip("House"); await tapChip("Continue"); await ready(); await measure("yes/no");
-  for (const a of ["no", "Jo Park", "1 Oak St, London", "5195550100", "no", "yes"]) await type(a);
+  await tapChip("House"); await tapChip("Continue"); await ready(); await measure("power lines");
+  for (const a of ["no", "no", "Jo Park", "1 Oak St, London", "5195550100", "no", "yes"]) await type(a);
   await page.waitForSelector("#end:not([hidden])"); await measure("end screen");
 
   ok(errors.length === 0, "no page errors: " + errors.join(" | "));

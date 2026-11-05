@@ -81,7 +81,7 @@ const ready = (page) => page.waitForFunction(() => !document.getElementById("inp
     });
 
     const latencies = [];
-    const answers = ["A tree came down", null, "no", "Jane Doe", "12 Oak St, London", "519 555 0199", "no"];
+    const answers = ["A tree came down", null, "no", "no", "Jane Doe", "12 Oak St, London", "519 555 0199", "no"];
     for (const a of answers) {
       await ready(page);
       if (a === null) { // multi-select step: tap a chip then Continue
@@ -126,8 +126,9 @@ const ready = (page) => page.waitForFunction(() => !document.getElementById("inp
     const { page, cdp, context } = await throttledPage(browser, "?fast");
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
     const call = async () => {
-      await page.click((await page.isVisible("#callBtn")) ? "#callBtn" : (await page.isVisible("#restartEnd")) ? "#restartEnd" : "#restartTop");
-      for (const a of ["A tree came down", "none", "no", "Jane Doe", "12 Oak St, London", "519 555 0199", "no", "yes"]) {
+      if (await page.isVisible("#restartEnd")) await page.click("#restartEnd");   // back to the scenario picker
+      await page.click("#callBtn");
+      for (const a of ["A tree came down", "neither", "no", "no", "Jane Doe", "12 Oak St, London", "519 555 0199", "no", "yes"]) {
         await ready(page); await page.fill("#input", a); await page.press("#input", "Enter");
       }
       await page.waitForSelector("#end:not([hidden])");

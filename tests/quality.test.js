@@ -30,7 +30,12 @@ const FAKE_SPEECH = () => {
     speaking: false, pending: false, _q: [],
     getVoices: () => [{ name: "Test Voice", lang: "en-CA" }],
     addEventListener() {},
-    speak(u) { window.__spoken.push(u.text); this.speaking = true; clearTimeout(this._t); this._t = setTimeout(() => { this.speaking = false; }, 60); },
+    speak(u) {
+      window.__spoken.push(u.text); this.speaking = true;
+      if (navigator.userActivation && navigator.userActivation.isActive) window.__primed = true;
+      setTimeout(() => u.onstart && u.onstart(), 5);
+      clearTimeout(this._t); this._t = setTimeout(() => { this.speaking = false; u.onend && u.onend(); }, 60);
+    },
     cancel() { window.__cancels++; this.speaking = false; },
   };
   Object.defineProperty(window, "speechSynthesis", { value: synth, configurable: true });
@@ -75,7 +80,7 @@ async function axeAudit(page, label) {
     await page.click("#callBtn");
     await send(page, "a tree fell on the power lines"); await ready(page);
     await axeAudit(page, "call (urgent, multi-select chips)");
-    await page.click('.chip:text-is("Continue")');
+    await page.click('.chip:text-is("Neither")'); await page.click('.chip:text-is("Continue")');
     for (const a of ["no", "Jane Doe", "12 Oak St, London", "5195550199", "no", "yes"]) await send(page, a);
     await page.waitForSelector("#end:not([hidden])");
     await page.click(".transcript summary");
@@ -102,16 +107,21 @@ async function axeAudit(page, label) {
     await ready(page);
     // multi-select by keyboard: Shift+Tab back into the chips, Space to toggle, then Continue
     let onChip = false;
-    for (let i = 0; i < 8 && !onChip; i++) { await page.keyboard.press("Shift+Tab"); onChip = (await focusId()) === "None of those"; }
+    for (let i = 0; i < 8 && !onChip; i++) { await page.keyboard.press("Shift+Tab"); onChip = (await focusId()) === "Neither"; }
     ok(onChip, "chips reachable with Shift+Tab");
     await page.keyboard.press("Space");
     let onCont = false;
     for (let i = 0; i < 4 && !onCont; i++) { await page.keyboard.press("Tab"); onCont = (await focusId()) === "Continue"; }
     ok(onCont, "Continue reachable with Tab");
     await page.keyboard.press("Enter");
-    for (const a of ["no", "Jane Doe", "12 Oak St, London", "5195550199", "no", "yes"]) { await ready(page); await page.keyboard.type(a); await page.keyboard.press("Enter"); }
+    for (const a of ["no", "no", "Jane Doe", "12 Oak St, London", "5195550199", "no", "yes"]) { await ready(page); await page.keyboard.type(a); await page.keyboard.press("Enter"); }
     await page.waitForSelector("#end:not([hidden])");
-    ok((await focusId()) === "restartEnd", "Start over is focused on the end screen");
+    ok((await focusId()) === "endTitle", "end screen heading is focused (announced, and a stray Enter does nothing)");
+    await page.keyboard.press("Enter");
+    ok(await page.isVisible("#end"), "Enter on the end screen doesn't leave it");
+    let onRestart = false;
+    for (let i = 0; i < 4 && !onRestart; i++) { await page.keyboard.press("Tab"); onRestart = (await focusId()) === "restartEnd"; }
+    ok(onRestart, "Tab reaches Start over");
     const ring = await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
     ok(ring !== "none", "focused button shows a focus ring");
     await page.close();
@@ -127,6 +137,8 @@ async function axeAudit(page, label) {
     ok(await page.isVisible("#voiceBtn"), "voice toggle shown when speech is supported");
     ok(await page.isVisible("#mic"), "mic shown when speech recognition is supported");
     let spoken = await page.evaluate(() => window.__spoken);
+    ok((await page.evaluate(() => window.__primed)) === true, "speech is unlocked during the Call tap");
+    spoken = spoken.filter((t) => t.trim());
     ok(spoken.length === 1 && /this is Ava/.test(spoken[0]), "greeting is spoken: " + JSON.stringify(spoken));
 
     // talk back with the mic
@@ -139,7 +151,7 @@ async function axeAudit(page, label) {
     const pressed = await page.$$eval('.chip[aria-pressed="true"]', (n) => n.map((x) => x.textContent));
     ok(pressed.includes("Car"), "car mentioned by voice is pre-ticked");
     await page.click('.chip:text-is("Continue")');
-    for (const a of ["no", "Jane Doe", "12 Oak St, London", "519 555 0199"]) await send(page, a);
+    for (const a of ["no", "no", "Jane Doe", "12 Oak St, London", "519 555 0199"]) await send(page, a);
     await ready(page);
     // mute: no further speech, and the setting sticks
     await page.click("#voiceBtn");
@@ -155,7 +167,7 @@ async function axeAudit(page, label) {
     ok(!spoken.some((t) => /URGENT/.test(t)), "URGENT spoken as a word, not shouted");
 
     // denied microphone hides the mic and explains
-    await page.click("#restartEnd"); await ready(page);
+    await page.click("#restartEnd"); await page.click("#callBtn"); await ready(page);
     await page.evaluate(() => window.__recQueue.push({ error: "not-allowed" }));
     await page.click("#mic");
     await page.waitForFunction(() => document.getElementById("mic").hidden);
