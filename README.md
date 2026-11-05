@@ -14,8 +14,13 @@ demos/
   ai-receptionist/                 One folder per kind of demo
     PRESENTING.md                  Walkthrough script for showing it to a client
     clc-tree-services/index.html   One folder per client
+scripts/
+  build-worker.js                  Bundles every page into dist/_worker.js for Cloudflare Pages
+  serve.mjs                        Serves that bundle locally, compressed like Cloudflare
+  deploy-cloudflare.sh             Builds and deploys to Cloudflare Pages
 tests/
   receptionist.test.js             Scenarios, layout and randomized stress test
+  buttons.test.js                  Taps every button in both scenarios on the deploy bundle
   quality.test.js                  Accessibility, keyboard, voice in/out, no network requests
   performance.test.js              Load, input latency, frame rate and memory on a throttled CPU
 ```
@@ -63,5 +68,16 @@ checks that every call finishes or restarts cleanly, that URGENT is flagged exac
 should be, that phone numbers are formatted, that nothing injected renders as HTML, and that
 Ava never quotes a price or an arrival time.
 
-Performance on a 4x-throttled CPU (a mid-range phone): first paint ~160ms, tap-to-screen
-under 40ms, 60fps during the call, and no memory growth across repeated calls.
+Performance (mid-range phone CPU): 18KB download in one request, ready to tap in ~0.3s on 4G
+and ~0.7s on 3G, taps show on screen in under 40ms, 60fps during the call, no memory growth.
+
+## Deploying
+
+Live at https://warder-demos.pages.dev/ (Cloudflare Pages project `warder-demos`).
+
+```bash
+CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... npm run deploy
+```
+
+New demos under `demos/<kind>/<client>/index.html` are picked up automatically; add a card for
+them in the root `index.html`.

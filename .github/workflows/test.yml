@@ -15,6 +15,10 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npx playwright install --with-deps chromium
+      - name: Build the deploy bundle
+        run: node scripts/build-worker.js
+      - name: Every button, both scenarios, on the deploy bundle
+        run: node tests/buttons.test.js
       - name: Scenarios, layout and stress (300 random calls)
         run: node tests/receptionist.test.js 300
       - name: Accessibility, keyboard, voice, network

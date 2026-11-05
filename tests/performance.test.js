@@ -143,6 +143,51 @@ const ready = (page) => page.waitForFunction(() => !document.getElementById("inp
     await context.close();
   }
 
+  // ---- over a phone network, against the deployed bundle (dist/_worker.js, compressed like Cloudflare)
+  {
+    const { spawn } = require("child_process");
+    const distPath = path.resolve(__dirname, "..", "dist", "_worker.js");
+    if (!fs.existsSync(distPath)) console.log("  (skipping network test: run node scripts/build-worker.js first)");
+    else {
+      const PORT = 8791;
+      const server = spawn(process.execPath, [path.join(__dirname, "..", "scripts", "serve.mjs"), String(PORT)], { stdio: ["ignore", "pipe", "ignore"], env: { ...process.env, NODE_NO_WARNINGS: "1" } });
+      await new Promise((res) => server.stdout.on("data", (d) => /serving/.test(d) && res()));
+      const demoUrl = `http://localhost:${PORT}/demos/ai-receptionist/clc-tree-services/`;
+      const NETS = [
+        // Chrome DevTools presets
+        { name: "Fast 3G", latency: 563, down: (1.44 * 1024 * 1024) / 8, up: (675 * 1024) / 8, budget: 2500 },
+        { name: "4G", latency: 170, down: (9 * 1024 * 1024) / 8, up: (1.5 * 1024 * 1024) / 8, budget: 1000 },
+      ];
+      for (const net of NETS) {
+        const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        const page = await context.newPage();
+        const cdp = await context.newCDPSession(page);
+        await cdp.send("Network.enable");
+        await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: net.latency, downloadThroughput: net.down, uploadThroughput: net.up });
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: THROTTLE });
+        let bytes = 0;
+        cdp.on("Network.loadingFinished", (e) => { bytes += e.encodedDataLength; });
+        const t0 = Date.now();
+        await page.goto(demoUrl, { waitUntil: "load" });
+        const loadMs = Date.now() - t0;
+        const fcp = await page.evaluate(() => new Promise((res) => {
+          const e = performance.getEntriesByName("first-contentful-paint")[0];
+          if (e) return res(e.startTime);
+          new PerformanceObserver((l) => res(l.getEntries()[0].startTime)).observe({ type: "paint", buffered: true });
+          setTimeout(() => res(-1), 3000);
+        }));
+        const requests = await page.evaluate(() => performance.getEntriesByType("resource").length + 1);
+        if (net.name === "Fast 3G") report("download size (compressed)", Number((bytes / 1024).toFixed(1)), "KB", 30);
+        if (net.name === "Fast 3G") report("requests to load the page", requests, "", 1);
+        if (fcp < 0) { failures++; console.log(`  ✗ ${net.name}: first paint not recorded`); }
+        else report(`${net.name}: first paint`, Math.round(fcp), "ms", net.budget);
+        report(`${net.name}: ready to tap Call`, loadMs, "ms", net.budget + 300);
+        await context.close();
+      }
+      server.kill();
+    }
+  }
+
   await browser.close();
   console.log(failures ? `\n${failures} budget(s) exceeded` : "\nAll performance budgets met");
   process.exit(failures ? 1 : 0);
