@@ -1,0 +1,24 @@
+name: Test demos
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - name: Scenarios, layout and stress (300 random calls)
+        run: node tests/receptionist.test.js 300
+      - name: Accessibility, keyboard, voice, network
+        run: node tests/quality.test.js
+      - name: Performance budgets (informational; shared runners vary in speed)
+        run: node tests/performance.test.js
+        continue-on-error: true

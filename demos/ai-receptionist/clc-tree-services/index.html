@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14382b">
-<title>AI Receptionist Demo</title>
+<title>CLC Tree Services · AI Receptionist Demo</title>
+<meta name="description" content="Call CLC Tree Services and talk to Ava, an AI receptionist that takes storm-damage calls, flags emergencies, and texts the crew a summary.">
+<meta property="og:title" content="CLC Tree Services · AI Receptionist Demo">
+<meta property="og:description" content="Try the call: Ava takes a storm-damage intake, flags urgent calls, and texts the crew a summary.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232e7a59'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='700' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <style>
   :root {
     /* Overridden at boot from CONFIG.theme */
@@ -20,7 +25,7 @@
     --char-600: #3a4046;
     --text: #edf2ee;
     --muted: #9ea9a3;
-    --urgent: #e5484d;
+    --urgent: #c8282e;   /* 5.3:1 against white text */
     --urgent-bg: #3a1618;
     --radius: 18px;
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -108,11 +113,13 @@
     background: var(--brand-500); font-weight: 700; font-size: 16px;
   }
   .who { flex: 1; min-width: 0; }
-  .who .name { font-weight: 650; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .who .name { margin: 0; font-weight: 650; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .who .sub { color: var(--brand-300); font-size: 13px; display: flex; align-items: center; gap: 6px; }
-  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #5fd68f; box-shadow: 0 0 0 0 rgba(95,214,143,.6); animation: pulse 1.8s infinite; }
-  .live-dot.off { background: var(--muted); animation: none; }
-  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(95,214,143,.55);} 70% { box-shadow: 0 0 0 7px rgba(95,214,143,0);} 100% { box-shadow: 0 0 0 0 rgba(95,214,143,0);} }
+  .live-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #5fd68f; }
+  .live-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #5fd68f; animation: pulse 1.8s ease-out infinite; will-change: transform, opacity; }
+  .live-dot.off { background: var(--muted); }
+  .live-dot.off::after { display: none; }
+  @keyframes pulse { 0% { transform: scale(1); opacity: .55; } 70%, 100% { transform: scale(3); opacity: 0; } }
   .who .sub span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .urgent-bar {
     background: var(--urgent); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .3px;
@@ -136,8 +143,10 @@
   }
   .mic svg { width: 20px; height: 20px; }
   .mic:disabled { opacity: .4; cursor: not-allowed; }
-  .mic.listening { background: var(--urgent); border-color: var(--urgent); color: #fff; animation: micPulse 1.4s infinite; }
-  @keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(229,72,77,.5);} 70% { box-shadow: 0 0 0 10px rgba(229,72,77,0);} 100% { box-shadow: 0 0 0 0 rgba(229,72,77,0);} }
+  .mic { position: relative; }
+  .mic.listening { background: var(--urgent); border-color: var(--urgent); color: #fff; }
+  .mic.listening::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 2px solid var(--urgent); animation: micPulse 1.4s ease-out infinite; will-change: transform, opacity; pointer-events: none; }
+  @keyframes micPulse { 0% { transform: scale(1); opacity: .7; } 70%, 100% { transform: scale(1.35); opacity: 0; } }
   .end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .ghost {
     border: 1px solid var(--brand-500); background: transparent; color: var(--brand-300);
@@ -151,12 +160,13 @@
   .transcript b { color: var(--brand-300); font-weight: 600; }
 
   /* ---------- Chat ---------- */
+  .chat:focus-visible { outline: 2px solid var(--brand-300); outline-offset: -2px; }
   .chat {
     flex: 1; overflow-y: auto; padding: 18px 14px 8px;
     display: flex; flex-direction: column; gap: 10px;
     scroll-behavior: smooth;
   }
-  .row { display: flex; gap: 8px; align-items: flex-end; }
+  .row { display: flex; gap: 8px; align-items: flex-end; contain: layout; }
   .row.caller { justify-content: flex-end; }
   .row .mini {
     flex: none; width: 26px; height: 26px; border-radius: 50%;
@@ -168,10 +178,10 @@
     font-size: 15.5px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word;
     animation: rise .22s ease-out;
   }
-  .wren .bubble { background: var(--char-700); border-bottom-left-radius: 6px; }
+  .agent .bubble { background: var(--char-700); border-bottom-left-radius: 6px; }
   .caller .bubble { background: var(--brand-500); color: #fff; border-bottom-right-radius: 6px; }
-  .wren .bubble.alert { background: var(--urgent-bg); border: 1px solid rgba(229,72,77,.5); }
-  .wren .bubble.alert b { color: #ff8b8e; }
+  .agent .bubble.alert { background: var(--urgent-bg); border: 1px solid rgba(229,72,77,.5); }
+  .agent .bubble.alert b { color: #ff8b8e; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
   .sys {
     align-self: center; font-size: 12.5px; color: var(--muted);
@@ -227,7 +237,7 @@
     display: flex; flex-direction: column; align-items: center;
     padding: 24px 16px 32px; gap: 18px;
   }
-  .end h2 { margin: 0; font-size: 20px; text-align: center; }
+  .end h1 { margin: 0; font-size: 20px; text-align: center; }
   .end .lede { margin: -8px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
   .phone {
     width: 100%; max-width: 360px;
@@ -246,7 +256,7 @@
   .thread-head .tt { font-weight: 650; font-size: 14.5px; }
   .thread-head .ts { color: #6b6f76; font-size: 12px; margin-top: 2px; }
   .thread { flex: 1; padding: 14px 12px 16px; display: flex; flex-direction: column; gap: 4px; }
-  .thread .stamp { text-align: center; color: #8a8e95; font-size: 11.5px; margin-bottom: 8px; }
+  .thread .stamp { text-align: center; color: #5f636a; font-size: 11.5px; margin-bottom: 8px; }
   .sms {
     align-self: flex-end; max-width: 88%;
     background: var(--brand-500); color: #fff;
@@ -260,9 +270,9 @@
   }
   .sms b { font-weight: 650; }
   .nowrap { white-space: nowrap; }
-  .delivered { align-self: flex-end; color: #8a8e95; font-size: 11.5px; margin-right: 4px; }
+  .delivered { align-self: flex-end; color: #5f636a; font-size: 11.5px; margin-right: 4px; }
   .compose-bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px 14px; }
-  .compose-bar span { flex: 1; border: 1px solid #d0d0d6; border-radius: 999px; padding: 7px 12px; color: #9a9ea5; font-size: 13.5px; background: #fff; }
+  .compose-bar span { flex: 1; border: 1px solid #d0d0d6; border-radius: 999px; padding: 7px 12px; color: #6b6f76; font-size: 13.5px; background: #fff; }
   .restart {
     border: 0; border-radius: 999px; padding: 13px 28px; font-weight: 650; font-size: 16px;
     background: var(--brand-500); color: #fff;
@@ -279,7 +289,7 @@
 </style>
 </head>
 <body>
-<div class="app">
+<main class="app">
 
   <!-- Intro -->
   <section class="intro" id="intro">
@@ -308,10 +318,10 @@
     <header class="call-head">
       <div class="avatar" id="headAvatar"></div>
       <div class="who">
-        <div class="name" id="headName"></div>
+        <h1 class="name" id="headName"></h1>
         <div class="sub"><span class="live-dot" id="liveDot"></span><span id="headSub"></span></div>
       </div>
-      <button class="icon-btn round" id="voiceBtn" aria-label="Wren's voice" aria-pressed="true" title="Wren's voice on/off" hidden>
+      <button class="icon-btn round" id="voiceBtn" aria-label="Receptionist voice" aria-pressed="true" title="Voice on/off" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6"/></svg>
       </button>
       <button class="icon-btn round" id="restartTop" aria-label="Start over" title="Start over">
@@ -319,7 +329,7 @@
       </button>
     </header>
     <div class="urgent-bar" id="urgentPill" role="status" hidden></div>
-    <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Call transcript"></div>
+    <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Call transcript" tabindex="0"></div>
     <div class="composer">
       <div class="chips" id="chips"></div>
       <form class="input-row" id="form" autocomplete="off">
@@ -336,7 +346,7 @@
 
   <!-- End screen -->
   <section class="end" id="end" hidden>
-    <h2>The crew's phone just buzzed</h2>
+    <h1>The crew's phone just buzzed</h1>
     <p class="lede" id="endLede"></p>
     <div class="phone" aria-label="Text message mockup">
       <div class="screen">
@@ -364,7 +374,7 @@
     </details>
     <p class="note" id="endNote"></p>
   </section>
-</div>
+</main>
 
 <script>
 /* =====================================================================
@@ -382,7 +392,7 @@ const CONFIG = {
     tagline: "Tree care with a rapid response team for storm emergencies",
   },
 
-  receptionist: { name: "Wren", role: "AI receptionist" },
+  receptionist: { name: "Ava", role: "AI receptionist" },   // rename here; every line below uses {receptionist}
 
   theme: {
     "--brand-900": "#0f2d22",
@@ -399,7 +409,7 @@ const CONFIG = {
     callLabel: "Call {businessPhone}",
   },
 
-  greeting: "Thanks for calling CLC Tree Services, this is Wren. How can I help?",
+  greeting: "Thanks for calling {business}, this is {receptionist}. How can I help?",
   greetingSuggestions: [
     "A tree came down in the storm",
     "How much do you charge?",
@@ -510,16 +520,16 @@ const CONFIG = {
     },
   ],
 
-  // Opening hours decide which greeting Wren uses. Placeholder hours: confirm with the client.
+  // Opening hours decide which greeting the receptionist uses. Placeholder hours: confirm with the client.
   // Days: 0 = Sunday … 6 = Saturday, [open hour, close hour] in 24h local time.
   hours: {
     timeZone: "America/Toronto",
     weekly: { 1: [7, 18], 2: [7, 18], 3: [7, 18], 4: [7, 18], 5: [7, 18], 6: [8, 14] },
-    afterHoursGreeting: "Thanks for calling CLC Tree Services, this is Wren. The office is closed right now, but I can take your details and get them to the crew. How can I help?",
+    afterHoursGreeting: "Thanks for calling {business}, this is {receptionist}. The office is closed right now, but I can take your details and get them to the crew. How can I help?",
     afterHoursTag: "After hours",
   },
 
-  // Wren never turns anyone away; she flags addresses the crew should double-check.
+  // The receptionist never turns anyone away; she flags addresses the crew should double-check.
   serviceArea: {
     places: ["London", "St. Thomas", "St Thomas", "Strathroy", "Komoka", "Kilworth", "Lambeth", "Dorchester",
              "Ilderton", "Arva", "Thorndale", "Delaware", "Mount Brydges", "Belmont", "Ingersoll", "Byron", "Hyde Park"],
@@ -542,7 +552,7 @@ const CONFIG = {
     callerMessage: "I'm marking this call <b>URGENT</b>, and the crew will be notified right away. Please stay clear of the tree and any downed lines.",
     // Scanned on everything the caller says during the intake, so "the power lines are down"
     // or "my husband is hurt" in the first sentence flags the call immediately.
-    // `answers` pre-fills a question so Wren doesn't ask something the caller already told her.
+    // `answers` pre-fills a question so the receptionist doesn't ask something the caller already told her.
     detect: [
       { reason: "Power lines involved",
         match: /\b(power|hydro|electric(al)?)\s*(lines?|wires?|cables?|poles?)\b|\b(downed|live|sparking)\s+(lines?|wires?)\b|\b(wires?|lines?)\s+(are\s+|is\s+)?(down|sparking)\b/i,
@@ -555,7 +565,7 @@ const CONFIG = {
     ],
   },
 
-  // Wren reads her lines aloud (browser text-to-speech), and callers can talk back where the
+  // The receptionist reads her lines aloud (browser text-to-speech), and callers can talk back where the
   // browser supports speech recognition (Chrome, Edge, Safari). Nothing is sent to a server
   // by this page; some browsers use their own cloud service for speech recognition.
   voice: {
@@ -567,7 +577,7 @@ const CONFIG = {
     preferredVoices: ["Google UK English Female", "Samantha", "Microsoft Aria", "Microsoft Jenny", "Karen", "Moira", "Female"],
   },
 
-  // Things callers ask mid-intake, and how Wren answers. Checked on every reply.
+  // Things callers ask mid-intake, and how the receptionist answers. Checked on every reply.
   guardrails: [
     { id: "ai",
       match: /\b(are|r) (you|u) (an? )?(ai|a\.i\.|bot|robot|machine|computer|real|human|person|live|recording)\b|\bis (this|that) (an? )?(ai|bot|robot|real person|human|recording|machine)\b|\b(real|live|actual) (person|human)\b|\bai\b|\bchat ?bot\b/i,
@@ -623,7 +633,7 @@ const CONFIG = {
     note: "{receptionist} never quotes prices or promises arrival times. The crew follows up directly.",
   },
 
-  timing: { minTyping: 450, perChar: 16, maxTyping: 1500, ringMs: 1100, endDelayMs: 1800 },
+  timing: { minTyping: 350, perChar: 12, maxTyping: 1100, ringMs: 900, endDelayMs: 1500 },
 };
 
 /* =====================================================================
@@ -677,7 +687,7 @@ const CONFIG = {
   const synth = "speechSynthesis" in window ? window.speechSynthesis : null;
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   let voiceOn = !!(synth && V.speak);
-  try { const saved = localStorage.getItem("wren-voice"); if (saved !== null && synth) voiceOn = saved === "1"; } catch (e) {}
+  try { const saved = localStorage.getItem("receptionist-voice"); if (saved !== null && synth) voiceOn = saved === "1"; } catch (e) {}
   let chosenVoice = null;
   function pickVoice() {
     if (!synth) return;
@@ -714,7 +724,7 @@ const CONFIG = {
     voiceOn = on;
     els.voiceBtn.setAttribute("aria-pressed", on ? "true" : "false");
     if (!on) hush();
-    try { localStorage.setItem("wren-voice", on ? "1" : "0"); } catch (e) {}
+    try { localStorage.setItem("receptionist-voice", on ? "1" : "0"); } catch (e) {}
   }
 
   let rec = null, listening = false;
@@ -754,11 +764,17 @@ const CONFIG = {
   }
 
   /* ---------- rendering ---------- */
-  function scrollDown() { els.chat.scrollTop = els.chat.scrollHeight; }
+  // One scroll per frame, after layout, instead of forcing a reflow on every message.
+  let scrollQueued = false;
+  function scrollDown() {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    requestAnimationFrame(() => { scrollQueued = false; els.chat.scrollTop = els.chat.scrollHeight; });
+  }
   function addRow(who, node) {
     const row = document.createElement("div");
     row.className = "row " + who;
-    if (who === "wren") {
+    if (who === "agent") {
       const mini = document.createElement("div");
       mini.className = "mini"; mini.setAttribute("aria-hidden", "true");
       mini.textContent = CONFIG.receptionist.name[0];
@@ -786,12 +802,12 @@ const CONFIG = {
     const typing = document.createElement("div");
     typing.className = "bubble typing"; typing.setAttribute("aria-label", CONFIG.receptionist.name + " is typing");
     typing.innerHTML = "<i></i><i></i><i></i>";
-    const row = addRow("wren", typing);
+    const row = addRow("agent", typing);
     const plain = text.replace(/<[^>]+>/g, "");
     const t = CONFIG.timing;
     try { await wait(Math.min(t.maxTyping, t.minTyping + plain.length * t.perChar)); }
     finally { row.remove(); }
-    bubble("wren", text, opts);
+    bubble("agent", text, opts);
     speak(text);
   }
 
@@ -968,7 +984,9 @@ const CONFIG = {
       return !!span && hour >= span[0] && hour < span[1];
     } catch (e) { return true; }
   }
-  let afterHours = !isOpenNow();
+  // Time-zone lookup loads ICU data (~20ms on a phone), so do it after first paint, when idle.
+  let afterHours = null;
+  function resolveHours() { if (afterHours === null && CONFIG.hours) setHours(!isOpenNow()); }
   function setHours(closed) {
     afterHours = closed;
     $("whenOpen").setAttribute("aria-checked", closed ? "false" : "true");
@@ -1111,8 +1129,8 @@ const CONFIG = {
       dl.append(dt, dd);
     });
     card.appendChild(dl);
-    S.log.push({ who: "wren", text: "[Read back] " + summaryRows().map((x) => x.label + ": " + x.value).join("; ") });
-    addRow("wren", card);
+    S.log.push({ who: "agent", text: "[Read back] " + summaryRows().map((x) => x.label + ": " + x.value).join("; ") });
+    addRow("agent", card);
     speak(summaryRows().map((x) => x.label + ", " + x.value).join(". "));
     await say(fill(CONFIG.confirm.question));
     renderChips([{ label: CONFIG.confirm.yesLabel, yes: true }, { label: CONFIG.confirm.noLabel, no: true }]);
@@ -1214,6 +1232,7 @@ const CONFIG = {
   function stopTimer() { if (timer) clearInterval(timer); timer = null; els.liveDot.classList.add("off"); }
 
   async function startCall() {
+    resolveHours();
     const id = ++runId;
     hush(); stopListening();
     reset();
@@ -1229,11 +1248,11 @@ const CONFIG = {
       sys(afterHours && CONFIG.hours ? "Connected · " + CONFIG.hours.afterHoursTag : "Connected");
       S.phase = "greeting";
       S.busy = true;
-      S.afterHours = afterHours;
+      S.afterHours = !!afterHours;
       await say(fill(afterHours && CONFIG.hours ? CONFIG.hours.afterHoursGreeting : CONFIG.greeting));
       S.busy = false;
       renderChips(CONFIG.greetingSuggestions.map((label) => ({ label })));
-      setComposer(true, "Tell Wren what's going on…");
+      setComposer(true, fill("Tell {receptionist} what's going on…"));
     } catch (e) { if (!(e instanceof Cancelled)) throw e; }
   }
 
@@ -1269,7 +1288,7 @@ const CONFIG = {
     S.log.forEach(({ who, text }) => {
       const p = document.createElement("p");
       const b = document.createElement("b");
-      b.textContent = (who === "wren" ? CONFIG.receptionist.name : "Caller") + ": ";
+      b.textContent = (who === "agent" ? CONFIG.receptionist.name : "Caller") + ": ";
       p.append(b, document.createTextNode(text));
       box.appendChild(p);
     });
@@ -1322,11 +1341,11 @@ const CONFIG = {
   $("endNote").textContent = fill(CONFIG.endScreen.note);
 
   if (CONFIG.hours) {
-    setHours(afterHours);
+    (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(resolveHours, { timeout: 1000 });
     $("whenOpen").addEventListener("click", () => setHours(false));
     $("whenClosed").addEventListener("click", () => setHours(true));
   } else document.querySelector(".when").hidden = true;
-  if (FAST) window.__wren = { state: () => S, config: CONFIG, checkArea };
+  if (FAST) window.__receptionist = { state: () => S, config: CONFIG, checkArea };
 
   $("callBtn").addEventListener("click", startCall);
   $("restartTop").addEventListener("click", startCall);

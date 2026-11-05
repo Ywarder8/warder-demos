@@ -7,7 +7,7 @@
  *   node tests/receptionist.test.js 300 demos/ai-receptionist/<client>/index.html
  *
  * Needs Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`).
- * The page is loaded with ?fast so Wren's typing delays are skipped.
+ * The page is loaded with ?fast so the receptionist's typing delays are skipped.
  */
 const path = require("path");
 const { chromium } = require("playwright");
@@ -55,7 +55,7 @@ async function newPage(browser, viewport = { width: 390, height: 844 }) {
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
   page.on("dialog", async (d) => { errors.push("dialog opened (possible XSS): " + d.message()); await d.dismiss(); });
-  await page.addInitScript(() => { try { localStorage.setItem("wren-voice", "0"); } catch (e) {} });
+  await page.addInitScript(() => { try { localStorage.setItem("receptionist-voice", "0"); } catch (e) {} });
   await page.goto(URL);
   return { page, errors };
 }
@@ -65,10 +65,10 @@ async function settle(page) {
   await page.waitForFunction(() => {
     const end = document.getElementById("end");
     if (!end.hidden) return true;
-    const w = window.__wren && window.__wren.state();
+    const w = window.__receptionist && window.__receptionist.state();
     return w && !w.busy && w.phase !== "intro" && !document.getElementById("input").disabled;
   }, null, { timeout: 8000 });
-  return page.evaluate(() => (document.getElementById("end").hidden ? window.__wren.state().phase : "ended"));
+  return page.evaluate(() => (document.getElementById("end").hidden ? window.__receptionist.state().phase : "ended"));
 }
 
 async function send(page, text) {
@@ -86,7 +86,7 @@ async function startCall(page) {
   await settle(page);
 }
 const smsText = (page) => page.innerText("#smsBody");
-const wrenLines = (page) => page.$$eval("#chat .row.wren .bubble", (ns) => ns.map((n) => n.innerText));
+const agentLines = (page) => page.$$eval("#chat .row.agent .bubble", (ns) => ns.map((n) => n.innerText));
 
 /* ------------------------------------------------------------------ */
 async function scenarios(browser) {
@@ -112,16 +112,16 @@ async function scenarios(browser) {
   await startCall(page);
   await send(page, "A tree fell on the power lines and my husband is hurt");
   await settle(page);
-  let st = await page.evaluate(() => window.__wren.state());
+  let st = await page.evaluate(() => window.__receptionist.state());
   ok(st.urgentReasons.length === 2, "urgent flagged from first sentence (got " + st.urgentReasons.join(",") + ")");
   ok(await page.isVisible("#urgentPill"), "urgent banner visible");
   const pressed = await page.$$eval('.chip[aria-pressed="true"]', (n) => n.map((x) => x.textContent));
   ok(pressed.includes("Power lines"), "power lines pre-selected in damage step");
   await chip(page, "Continue");
-  st = await page.evaluate(() => window.__wren.state());
-  ok(st.phase === "step" && st.answers.injuries && !/hurt\?/.test((await wrenLines(page)).slice(-1)[0]), "injury question skipped");
+  st = await page.evaluate(() => window.__receptionist.state());
+  ok(st.phase === "step" && st.answers.injuries && !/hurt\?/.test((await agentLines(page)).slice(-1)[0]), "injury question skipped");
   await send(page, "Sam Lee"); await send(page, "5 Elm Ave");
-  ok((await page.evaluate(() => window.__wren.state().phase)) === "areaTown", "asks for town when address has none");
+  ok((await page.evaluate(() => window.__receptionist.state().phase)) === "areaTown", "asks for town when address has none");
   await chip(page, "London");
   await send(page, "five one nine five five five zero one nine nine");
   await send(page, "my brother Ray 226 555 0142");
@@ -133,11 +133,11 @@ async function scenarios(browser) {
   ok(/Backup: My brother Ray \(226\) 555-0142/.test(t), "backup number formatted");
   ok(/Address: 5 Elm Ave, London/.test(t), "town appended to address");
 
-  // 3. Guardrails: AI / price / ETA / safety, and Wren never quotes
+  // 3. Guardrails: AI / price / ETA / safety, and receptionist never quotes
   await startCall(page);
   await send(page, "Are you an AI? How much do you charge? When can you get here? Is it safe to cut it myself?");
   await settle(page);
-  const lines = (await wrenLines(page)).join("\n");
+  const lines = (await agentLines(page)).join("\n");
   ok(/I'm an AI receptionist/.test(lines), "AI question answered honestly");
   ok(/not able to give pricing/.test(lines), "price deflected");
   ok(/can't promise an arrival time/.test(lines), "ETA deflected");
@@ -149,15 +149,15 @@ async function scenarios(browser) {
   await chip(page, "House"); await chip(page, "Continue");
   await send(page, "yes and no");
   await settle(page);
-  ok((await page.evaluate(() => window.__wren.state().answers.injuries)) == null, "contradictory injury answer is re-asked");
+  ok((await page.evaluate(() => window.__receptionist.state().answers.injuries)) == null, "contradictory injury answer is re-asked");
   await send(page, "no");
   await send(page, "Ann Lee"); await send(page, "9 Main St, Toronto");
   await settle(page);
-  ok((await wrenLines(page)).some((l) => /outside our usual service area/.test(l)), "out-of-area warning given");
+  ok((await agentLines(page)).some((l) => /outside our usual service area/.test(l)), "out-of-area warning given");
   await send(page, "5195550100"); await send(page, "no");
   await send(page, "no the address is wrong");
   await settle(page);
-  ok((await page.evaluate(() => window.__wren.state().editing)) === "address", "edit jumps straight to address");
+  ok((await page.evaluate(() => window.__receptionist.state().editing)) === "address", "edit jumps straight to address");
   await send(page, "14 Oak St, London");
   await send(page, "Something needs fixing");
   await chip(page, "Backup contact");
@@ -172,7 +172,7 @@ async function scenarios(browser) {
   // 5. After-hours greeting
   await page.click("#restartEnd");
   await page.reload(); await page.click("#whenClosed"); await startCall(page);
-  ok((await wrenLines(page)).some((l) => /office is closed/.test(l)), "after-hours greeting used");
+  ok((await agentLines(page)).some((l) => /office is closed/.test(l)), "after-hours greeting used");
 
   // 6. Copy summary + transcript
   await page.reload(); await startCall(page);
@@ -210,14 +210,14 @@ async function stress(browser) {
       let phase;
       const tS = Date.now();
       try { phase = await settle(page); if (process.env.DEBUG && Date.now() - tS > 400) console.log(`  slow settle ${Date.now() - tS}ms run=${run}`); } catch (e) {
-        const st = await page.evaluate(() => window.__wren && window.__wren.state()).catch(() => null);
+        const st = await page.evaluate(() => window.__receptionist && window.__receptionist.state()).catch(() => null);
         fail(`run ${run}: stuck (phase=${st && st.phase}, busy=${st && st.busy})`); break;
       }
       if (phase === "ended") { done = true; break; }
       actions++;
       const r = rand();
       const tA = Date.now();
-      const stepKey = await page.evaluate(() => { const s = window.__wren.state(); return s.phase === "step" ? window.__wren.config.steps[s.idx].key : s.phase; });
+      const stepKey = await page.evaluate(() => { const s = window.__receptionist.state(); return s.phase === "step" ? window.__receptionist.config.steps[s.idx].key : s.phase; });
 
       if (r < 0.03) { // restart mid-call
         await page.click("#restartTop"); aborted++; break;
@@ -255,9 +255,9 @@ async function stress(browser) {
     completed++;
 
     // ---- invariants on the finished call ----
-    const st = await page.evaluate(() => window.__wren.state());
+    const st = await page.evaluate(() => window.__receptionist.state());
     const sms = await smsText(page);
-    const wl = (await page.$$eval("#chat .row.wren .bubble", (n) => n.map((x) => x.innerText))).join("\n");
+    const wl = (await page.$$eval("#chat .row.agent .bubble", (n) => n.map((x) => x.innerText))).join("\n");
     if (st.urgentReasons.length) urgentCalls++;
     ok(/\(\d{3}\) \d{3}-\d{4}/.test(st.answers.phone || ""), `run ${run}: phone formatted (${st.answers.phone})`);
     ok(!!st.answers.name && sms.includes(st.answers.name.slice(0, 50)), `run ${run}: name in SMS`);
@@ -267,7 +267,7 @@ async function stress(browser) {
     ok(st.raw.injuries !== "Yes" || st.urgentReasons.includes("Someone is hurt"), `run ${run}: injury => urgent`);
     ok(!st.urgentReasons.includes("Someone is hurt") || st.raw.injuries === "Yes", `run ${run}: urgent injury only if injuries=Yes`);
     ok(await page.$$eval("#chat img, #chat script, #smsBody img, #transcript img", (n) => n.length) === 0, `run ${run}: no injected HTML`);
-    ok(!/\$\s?\d|\b\d+\s*(minutes?|mins?|hours?|hrs?)\b|\bwithin\b|\bon (our|the) way\b/i.test(wl), `run ${run}: Wren never quotes price/time`);
+    ok(!/\$\s?\d|\b\d+\s*(minutes?|mins?|hours?|hrs?)\b|\bwithin\b|\bon (our|the) way\b/i.test(wl), `run ${run}: receptionist never quotes price/time`);
     if (!typedBraces) ok(!/\{(first|name|phone|address|business|receptionist|role|town|label|phrase)\}/.test(wl + sms), `run ${run}: no unfilled placeholders`);
     ok(sms.length < 3000, `run ${run}: SMS stays a sane length (${sms.length})`);
     if (errors.length) { fail(`run ${run}: ${errors.join(" | ")}`); errors.length = 0; }

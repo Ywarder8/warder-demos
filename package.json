@@ -1,0 +1,15 @@
+{
+  "name": "warder-demos",
+  "private": true,
+  "description": "Click-through demos of AI tools for local businesses. The demos themselves have no dependencies; these are only for the test suite.",
+  "scripts": {
+    "test": "node tests/receptionist.test.js 300 && node tests/quality.test.js && node tests/performance.test.js",
+    "test:stress": "node tests/receptionist.test.js 1000",
+    "test:quality": "node tests/quality.test.js",
+    "test:perf": "node tests/performance.test.js"
+  },
+  "devDependencies": {
+    "axe-core": "4.10.2",
+    "playwright": "1.63.0"
+  }
+}
