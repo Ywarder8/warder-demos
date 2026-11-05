@@ -129,6 +129,7 @@
   .live-dot.off::after { display: none; }
   @keyframes pulse { 0% { transform: scale(1); opacity: .55; } 70%, 100% { transform: scale(3); opacity: 0; } }
   .who .sub span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .urgent-bar.priority { background: #a14a07; }
   .urgent-bar {
     background: var(--urgent); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .3px;
     padding: 7px 16px; text-align: center; animation: rise .22s ease-out;
@@ -190,6 +191,8 @@
   .caller .bubble { background: var(--brand-500); color: #fff; border-bottom-right-radius: 6px; }
   .agent .bubble.alert { background: var(--urgent-bg); border: 1px solid rgba(229,72,77,.5); }
   .agent .bubble.alert b { color: #ff8b8e; }
+  .agent .bubble.notice { background: #3a2a10; border: 1px solid rgba(217,140,40,.55); }
+  .agent .bubble.notice b { color: #f3b35b; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
   .sys {
     align-self: center; font-size: 12.5px; color: var(--muted);
@@ -200,6 +203,7 @@
   .card dt { color: var(--muted); }
   .card dd { margin: 0; }
   .card .flag { grid-column: 1 / -1; color: #ff8b8e; font-weight: 800; letter-spacing: .5px; }
+  .card .flag.amber { color: #f3b35b; }
   .typing { display: inline-flex; gap: 4px; padding: 13px 14px; }
   .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
   .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
@@ -273,13 +277,13 @@
     padding: 10px 13px; font-size: 14.5px; line-height: 1.42;
     white-space: pre-wrap; word-wrap: break-word;
   }
-  /* Banner across the top of the crew's text: red URGENT, amber storm call, none for estimates */
+  /* Banner across the top of the team's text: red URGENT, amber priority/storm, none for routine */
   .sms-banner {
     margin: -10px -13px 8px; padding: 8px 13px; border-radius: 18px 18px 0 0;
     font-weight: 800; letter-spacing: 1px; font-size: 14px; color: #fff; white-space: normal;
   }
   .sms-banner.urgent { background: var(--urgent); font-size: 16px; letter-spacing: 1.5px; }
-  .sms-banner.storm { background: #a14a07; }
+  .sms-banner.storm, .sms-banner.priority { background: #a14a07; }
   .sms-reasons { margin: -4px 0 8px; font-weight: 650; white-space: normal; }
   .sms.sms-urgent { box-shadow: 0 0 0 2px var(--urgent); }
   .sms b { font-weight: 650; }
@@ -809,6 +813,8 @@ const CONFIG = {
       businessName: CONFIG.business.name,
       businessPhone: CONFIG.business.phone,
       possessive: CONFIG.business.possessive || CONFIG.business.shortName + "'s",
+      nextOpen: (typeof scenario !== "undefined" && scenario && scenario.nextOpen) || "",
+      appliance: S && S.answers.appliance ? S.answers.appliance.toLowerCase() : "",
       receptionist: CONFIG.receptionist.name,
       role: CONFIG.receptionist.role,
       first: firstName(),
@@ -1091,15 +1097,32 @@ const CONFIG = {
   }
 
   /* ---------- urgency ---------- */
+  // A rule checks one answer (includes / equals / in / match) or several at once (all: [...]).
+  function ruleHits(r) {
+    if (r.all) return r.all.every(ruleHits);
+    const v = S.raw[r.key];
+    if (v == null) return false;
+    if (r.includes) return Array.isArray(v) ? v.includes(r.includes) : v === r.includes;
+    if (r.equals) return v === r.equals;
+    if (r.in) return (Array.isArray(v) ? v : [v]).some((x) => r.in.includes(x));
+    if (r.match) return r.match.test(String(S.answers[r.key] || v)) && !(r.unless && r.unless.test(String(S.answers[r.key] || v)));
+    return false;
+  }
   function computeUrgent() {
-    const fromRules = CONFIG.urgent.rules.filter((r) => {
-      const v = S.raw[r.key];
-      if (v == null) return false;
-      if (r.includes) return Array.isArray(v) ? v.includes(r.includes) : v === r.includes;
-      if (r.equals) return v === r.equals;
-      return false;
-    }).map((r) => r.reason);
-    return [...new Set([...fromRules, ...S.mentioned])];
+    const fromRules = (CONFIG.urgent.rules || []).filter(ruleHits).map((r) => r.reason);
+    return [...new Set([...(S.override ? [S.override] : []), ...fromRules, ...S.mentioned])];
+  }
+  // Optional middle tier (e.g. "PRIORITY"): flagged for the team, but not an emergency.
+  function computePriority() {
+    const P = CONFIG.priorityTier;
+    return P ? [...new Set(P.rules.filter(ruleHits).map((r) => r.reason))] : [];
+  }
+  function tier() { return S.urgentReasons.length ? "urgent" : S.priorityReasons.length ? "priority" : "normal"; }
+  // Value for the current tier from a { urgent, priority, normal } map (priority falls back to normal).
+  function pickTier(map) {
+    if (!map) return null;
+    const t = tier();
+    return map[t] != null ? map[t] : map.normal;
   }
   // Scan free text for urgent situations the caller mentions before being asked.
   function detectFromSpeech(text) {
@@ -1145,6 +1168,7 @@ const CONFIG = {
   }
   async function announceUrgentIfNew() {
     if (refreshUrgent()) await say(urgentMessage(), { html: true, cls: "alert" });
+    await announcePriorityIfNew();
   }
   function nextUnanswered(i) {
     while (i < STEPS.length && S.raw[STEPS[i].key] != null) i++;
@@ -1152,22 +1176,33 @@ const CONFIG = {
   }
   function refreshUrgent() {
     S.urgentReasons = computeUrgent();
-    els.urgentPill.hidden = S.urgentReasons.length === 0;
+    S.priorityReasons = computePriority();
+    const t = tier();
+    els.urgentPill.hidden = t === "normal";
+    els.urgentPill.classList.toggle("priority", t === "priority");
+    els.urgentPill.textContent = t === "priority" ? fill(CONFIG.priorityTier.headerBanner || CONFIG.priorityTier.label)
+      : fill(CONFIG.urgent.banner || CONFIG.urgent.label);
     const newly = S.urgentReasons.length > 0 && !S.urgentAnnounced;
     if (newly) S.urgentAnnounced = true;
+    S.priorityNew = t === "priority" && !S.priorityAnnounced;
+    if (S.priorityNew) S.priorityAnnounced = true;
     return newly;
+  }
+  async function announcePriorityIfNew() {
+    if (S.priorityNew) { S.priorityNew = false; await say(fill(CONFIG.priorityTier.callerMessage), { html: true, cls: "notice" }); }
   }
 
   /* ---------- summary ---------- */
   function summaryRows() {
-    if (FLOW.priority) S.answers.priority = S.urgentReasons.length ? FLOW.priority.urgent : FLOW.priority.normal;
+    if (FLOW.priority) S.answers.priority = pickTier(FLOW.priority);
+    if (FLOW.nextStep) S.answers.nextStep = fill(pickTier(FLOW.nextStep));
     return FLOW.fields
       .filter((f) => f.key !== "area" || S.answers.area)
-      .map((f) => ({ key: f.key, label: f.label, value: S.answers[f.key] || "—" }));
+      .map((f) => ({ key: f.key, label: f.label, value: S.answers[f.key] || (S.override && CONFIG.safetyOverride.missing) || "—" }));
   }
 
-  // The in-chat read-back shows what the caller told Ava; the priority line is for the crew's text only.
-  const readBackRows = () => summaryRows().filter((r) => r.key !== "priority");
+  // The in-chat read-back shows what the caller said; priority and next-step lines are for the team's text only.
+  const readBackRows = () => summaryRows().filter((r) => r.key !== "priority" && r.key !== "nextStep");
 
   /* ---------- service area ---------- */
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1218,16 +1253,21 @@ const CONFIG = {
     if (S.editing) {
       S.editing = null;
       if (newly) await say(urgentMessage(), { html: true, cls: "alert" });
+      await announcePriorityIfNew();
       return goConfirm();
     }
     if (step.ack) await say(fill(step.ack));
     if (newly) await say(urgentMessage(), { html: true, cls: "alert" });
+    await announcePriorityIfNew();
     S.idx = nextUnanswered(S.idx + 1);
     if (S.idx < STEPS.length) await askStep(STEPS[S.idx]);
     else await goConfirm();
   }
 
   async function onGreeting(text, chip, guards) {
+    // Text questions can take their answer from the caller's first sentence ("my fridge stopped cooling").
+    STEPS.filter((st) => st.captureFromGreeting && S.raw[st.key] == null && !guards.length && st.captureFromGreeting.test(text))
+      .forEach((st) => { S.raw[st.key] = S.answers[st.key] = clip(capFirst(text)); });
     const di = STEPS.findIndex((s) => s.detectFromGreeting);
     const step = STEPS[di];
     const o = step ? bestOption(step.options, text) : null;
@@ -1235,6 +1275,7 @@ const CONFIG = {
       S.raw[step.key] = optValue(o); S.answers[step.key] = optDisplay(o);
       refreshUrgent();
       await say(fill(FLOW.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
+      await announcePriorityIfNew();
       S.idx = nextUnanswered(di + 1);
     } else {
       await say(fill(guards.length || S.urgentAnnounced ? FLOW.greetingReply.afterGuardrail : FLOW.greetingReply.default));
@@ -1298,6 +1339,10 @@ const CONFIG = {
       const f = document.createElement("div"); f.className = "flag";
       f.textContent = CONFIG.urgent.label + ": " + S.urgentReasons.join(", ");
       dl.appendChild(f);
+    } else if (S.priorityReasons.length) {
+      const f = document.createElement("div"); f.className = "flag amber";
+      f.textContent = CONFIG.priorityTier.label + ": " + S.priorityReasons.join(", ");
+      dl.appendChild(f);
     }
     readBackRows().forEach(({ label, value }) => {
       const dt = document.createElement("dt"); dt.textContent = label;
@@ -1328,7 +1373,8 @@ const CONFIG = {
     const order = ["backup", "bestTime", "service", "details", "injuries", "damage", "incident", "address", "phone", "name"];
     const byLabel = STEPS.find((s) => t.includes(s.label.toLowerCase()));
     const bySyn = order.map((k) => STEPS.find((s) => s.key === k)).find((s) => s && syn[s.key] && syn[s.key].test(t));
-    return bySyn || byLabel;
+    const byMatch = STEPS.find((s) => s.editMatch && s.editMatch.test(t));
+    return bySyn || byMatch || byLabel;
   }
 
   async function onConfirm(text, chip, guards) {
@@ -1366,15 +1412,37 @@ const CONFIG = {
     setComposer(true, "Which detail?");
   }
 
-  async function finish() {
+  async function finish(closingOverride) {
     S.phase = "done";
     clearChips(); setComposer(false, "Call ended");
-    await say(fill(S.urgentReasons.length ? FLOW.closing.urgent : FLOW.closing.normal, { safety: closingSafety() }).trim());
+    const closing = closingOverride || (tier() === "priority" && FLOW.closing.priority) || (S.urgentReasons.length ? FLOW.closing.urgent : FLOW.closing.normal);
+    await say(fill(closing, { safety: closingSafety() }).trim());
     await untilQuiet(20000);
     stopTimer();
     sys("Call ended · " + mmss(Date.now() - S.start));
     await wait(CONFIG.timing.endDelayMs);
     showEnd();
+  }
+
+  // A safety override (CONFIG.safetyOverride) beats everything: the receptionist gives the safety
+  // instruction, flags the call URGENT and wraps up without asking anything else.
+  function safetyHit(text) {
+    const so = CONFIG.safetyOverride;
+    return !!(so && !S.override && so.match.test(text) && !(so.unless && so.unless.test(text)));
+  }
+  async function runSafetyOverride(text) {
+    const so = CONFIG.safetyOverride;
+    S.override = so.reason;
+    // keep whatever the caller just told us (e.g. which appliance)
+    STEPS.filter((st) => st.detectFromGreeting && S.raw[st.key] == null).forEach((st) => {
+      const o = bestOption(st.options, text);
+      if (o && !o.other) { S.raw[st.key] = optValue(o); S.answers[st.key] = optDisplay(o); }
+    });
+    STEPS.filter((st) => st.captureFromGreeting && S.raw[st.key] == null).forEach((st) => { S.raw[st.key] = S.answers[st.key] = clip(capFirst(text)); });
+    S.editing = null;
+    refreshUrgent(); S.priorityNew = false;
+    await say(fill(so.message), { html: true, cls: "alert" });
+    await finish(so.closing);
   }
 
   async function handleInput(text, chip = null) {
@@ -1386,6 +1454,7 @@ const CONFIG = {
     clearChips(); setComposer(false); els.input.value = "";
     bubble("caller", text);
     try {
+      if (safetyHit(text)) return await runSafetyOverride(text);
       const guards = matchGuardrails(text);
       for (const g of guards) await say(fill(g.reply));
       S.justAnswered = [];
@@ -1452,7 +1521,8 @@ const CONFIG = {
   }
   function summaryText() {
     const lines = [];
-    if (S.urgentReasons.length) lines.push(CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
+    if (S.urgentReasons.length) lines.push(CONFIG.urgent.smsBanner ? fill(CONFIG.urgent.smsBanner, { reasons: S.urgentReasons.join(", ") }) : CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
+    else if (S.priorityReasons.length) lines.push(fill(CONFIG.priorityTier.smsBanner, { reasons: S.priorityReasons.join(", ") }), "");
     lines.push(summaryHeading());
     summaryRows().forEach(({ label, value }) => lines.push(label + ": " + value));
     lines.push("", fill(CONFIG.summary.footer));
@@ -1488,7 +1558,7 @@ const CONFIG = {
   function showEnd() {
     renderTranscript();
     els.call.hidden = true; els.end.hidden = false;
-    // The scenario sets the day and time, so the storm call lands on Sunday morning.
+    // The scenario sets the day and time shown on the text (e.g. the storm call lands on Sunday morning).
     const clock = scenario.clock || { day: "Today", time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) };
     $("smsClock").textContent = clock.time.replace(/\s?[AP]M$/i, "");
     $("smsStamp").textContent = clock.day + " " + clock.time;
@@ -1496,11 +1566,15 @@ const CONFIG = {
     $("smsTitle").textContent = fill(CONFIG.summary.title);
     $("smsSub").textContent = fill(CONFIG.summary.subtitle);
     const body = $("smsBody");
-    const urgent = S.urgentReasons.length > 0;
-    body.className = "sms " + (urgent ? "sms-urgent" : FLOW.banner ? "sms-storm" : "sms-plain");
+    const t = tier();
+    body.className = "sms " + (t === "urgent" ? "sms-urgent" : t === "priority" ? "sms-priority" : FLOW.banner ? "sms-storm" : "sms-plain");
     let html = "";
-    if (urgent) {
+    if (t === "urgent" && CONFIG.urgent.smsBanner) {
+      html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.urgent.smsBanner, { reasons: S.urgentReasons.join(", ") }))}</div>`;
+    } else if (t === "urgent") {
       html += `<div class="sms-banner urgent">${escapeHtml(CONFIG.urgent.label)}</div><div class="sms-reasons">${escapeHtml(S.urgentReasons.join(" · "))}</div>`;
+    } else if (t === "priority") {
+      html += `<div class="sms-banner priority">${escapeHtml(fill(CONFIG.priorityTier.smsBanner, { reasons: S.priorityReasons.join(", ") }))}</div>`;
     } else if (FLOW.banner) {
       html += `<div class="sms-banner storm">${escapeHtml(FLOW.banner)}</div>`;
     }
@@ -1518,8 +1592,10 @@ const CONFIG = {
   function reset() {
     S = { phase: "intro", idx: 0, answers: {}, raw: {}, urgentReasons: [], urgentAnnounced: false,
           busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now(),
-          mentioned: [], justAnswered: [], hints: {}, soft: {}, log: [], pendingStep: null, flow: null };
+          mentioned: [], justAnswered: [], hints: {}, soft: {}, log: [], pendingStep: null, flow: null,
+          priorityReasons: [], priorityAnnounced: false, priorityNew: false, override: null };
     els.urgentPill.hidden = true;
+    els.urgentPill.classList.remove("priority");
   }
 
   /* ---------- boot ---------- */
@@ -1528,7 +1604,8 @@ const CONFIG = {
   reset();
   $("introLogo").textContent = CONFIG.business.initials;
   $("introName").textContent = CONFIG.business.name;
-  $("introWhere").textContent = CONFIG.business.tagline + "\n" + CONFIG.business.address + " · Serving " + CONFIG.business.serviceArea;
+  $("introWhere").textContent = CONFIG.intro.where ? fill(CONFIG.intro.where)
+    : CONFIG.business.tagline + "\n" + CONFIG.business.address + " · Serving " + CONFIG.business.serviceArea;
   $("introScenario").textContent = fill(CONFIG.intro.pitch);
   $("pickLabel").textContent = fill(CONFIG.intro.pickLabel);
   $("picker").setAttribute("aria-label", fill(CONFIG.intro.pickLabel));
@@ -1552,6 +1629,8 @@ const CONFIG = {
   $("headAvatar").textContent = CONFIG.receptionist.name[0];
   $("headName").textContent = CONFIG.receptionist.name + " · " + CONFIG.receptionist.role;
   $("urgentPill").textContent = fill(CONFIG.urgent.banner || CONFIG.urgent.label);
+  if (CONFIG.intro.footer) document.querySelector(".fineprint").textContent = fill(CONFIG.intro.footer);
+  if (CONFIG.endScreen.title) $("endTitle").textContent = fill(CONFIG.endScreen.title);
   $("endLede").textContent = fill(CONFIG.endScreen.lede);
   $("endNote").textContent = fill(CONFIG.endScreen.note);
 

@@ -12,8 +12,8 @@ Start at [`index.html`](index.html), the landing page that links every demo.
 index.html                         Landing page (edit the DEMOS list to add a card)
 demos/
   ai-receptionist/                 One folder per kind of demo
-    PRESENTING.md                  Walkthrough script for showing it to a client
-    clc-tree-services/index.html   One folder per client
+    clc-tree-services/index.html   One folder per client (PRESENTING.md alongside: walkthrough script)
+    nz-systems/index.html
 scripts/
   build-worker.js                  Bundles every page into dist/_worker.js for Cloudflare Pages
   serve.mjs                        Serves that bundle locally, compressed like Cloudflare
@@ -21,6 +21,7 @@ scripts/
 tests/
   receptionist.test.js             Scenarios, layout and randomized stress test
   buttons.test.js                  Taps every button in both scenarios on the deploy bundle
+  nz-systems.test.js               NZ Systems: priority rule, gas override, scenarios, stress, a11y
   quality.test.js                  Accessibility, keyboard, voice in/out, no network requests
   performance.test.js              Load, input latency, frame rate and memory on a throttled CPU
 ```
@@ -30,10 +31,15 @@ tests/
 | Demo | What it shows |
 | --- | --- |
 | [CLC Tree Services](demos/ai-receptionist/clc-tree-services/index.html) | Ava, an AI receptionist, answers the main line when the team can't. Two scenarios: a Sunday-morning storm emergency (flagged URGENT for injuries or power lines) and a routine free-estimate request. Texts the crew a summary. Optional voice in and out. |
+| [NZ Systems](demos/ai-receptionist/nz-systems/index.html) | Appliance repair, open weekdays 9 to 5. Ava answers when the shop is closed: a Saturday fridge failure flagged PRIORITY (amber), a routine Wednesday washer call, and a gas-smell safety rule that ends the call with URGENT. |
 
 ## Making a new receptionist demo
 
-1. Copy `demos/ai-receptionist/clc-tree-services/` to `demos/ai-receptionist/<client-name>/`.
+1. Copy an existing demo folder to `demos/ai-receptionist/<client-name>/`. Every receptionist demo
+   uses the identical engine below `CONFIG`; only `CONFIG` and the page title differ. Optional
+   `CONFIG` features: `priorityTier` (an amber middle flag), `safetyOverride` (a phrase that ends
+   the call with a safety instruction and an URGENT flag), `captureFromGreeting` and `editMatch`
+   on questions, `intro.where` / `intro.footer`, and `endScreen.title`.
 2. Edit the `CONFIG` object at the top of the script: business details, the receptionist's
    name (`receptionist.name`, used everywhere), colours, the demo scenarios (greeting, day and
    time, one-tap sample answers), the intake flows (questions, summary fields, closing lines),

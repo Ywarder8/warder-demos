@@ -23,6 +23,8 @@ jobs:
         run: node tests/receptionist.test.js 300
       - name: Accessibility, keyboard, voice, network
         run: node tests/quality.test.js
+      - name: NZ Systems demo
+        run: node tests/nz-systems.test.js
       - name: Performance budgets (informational; shared runners vary in speed)
         run: node tests/performance.test.js
         continue-on-error: true
