@@ -74,7 +74,7 @@
     box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12);
   }
   .intro h1 { margin: 6px 0 0; font-size: 26px; line-height: 1.2; }
-  .intro .where { color: var(--muted); margin: 0; font-size: 15px; }
+  .intro .where { color: var(--muted); margin: 4px 0 0; font-size: 14.5px; line-height: 1.5; white-space: pre-line; }
   .scenario {
     background: var(--char-800); border: 1px solid var(--char-700);
     border-radius: 14px; padding: 14px 16px; max-width: 380px;
@@ -93,11 +93,19 @@
   .call-btn:active { transform: scale(.97); }
   .call-btn svg { width: 20px; height: 20px; }
   .fineprint { color: var(--muted); font-size: 12.5px; margin: 0; }
-  .when { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .picker-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 420px; }
+  .picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+  .pick {
+    text-align: left; border: 1px solid var(--char-700); background: var(--char-800); color: var(--text);
+    border-radius: 14px; padding: 12px 13px; display: flex; flex-direction: column; gap: 3px;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .pick:hover { border-color: var(--brand-500); }
+  .pick[aria-checked="true"] { border-color: var(--brand-500); background: rgba(46,122,89,.16); box-shadow: inset 0 0 0 1px var(--brand-500); }
+  .pick .t { font-weight: 650; font-size: 15px; }
+  .pick .w { font-size: 12px; color: var(--brand-300); text-transform: uppercase; letter-spacing: .5px; }
+  .pick .b { font-size: 13.5px; color: #c9d2cd; line-height: 1.4; }
   .when-label { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
-  .seg { display: inline-flex; background: var(--char-800); border: 1px solid var(--char-700); border-radius: 999px; padding: 3px; }
-  .seg button { border: 0; background: transparent; color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
-  .seg button[aria-checked="true"] { background: var(--brand-700); color: var(--text); }
 
   /* ---------- Call header ---------- */
   .call-head {
@@ -299,12 +307,9 @@
       <p class="where" id="introWhere"></p>
     </div>
     <div class="scenario" id="introScenario"></div>
-    <div class="when" role="radiogroup" aria-label="When are you calling?">
-      <span class="when-label">Calling during</span>
-      <div class="seg">
-        <button type="button" role="radio" data-hours="open" id="whenOpen">Office hours</button>
-        <button type="button" role="radio" data-hours="closed" id="whenClosed">After hours</button>
-      </div>
+    <div class="picker-wrap">
+      <span class="when-label" id="pickLabel"></span>
+      <div class="picker" role="radiogroup" id="picker"></div>
     </div>
     <button class="call-btn" id="callBtn">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
@@ -387,9 +392,11 @@ const CONFIG = {
     name: "CLC Tree Services Ltd",
     shortName: "CLC Tree Services",
     initials: "CLC",
-    location: "London, Ontario",
-    phone: "(519) 555-0142",            // placeholder: swap in the real main line
-    tagline: "Tree care with a rapid response team for storm emergencies",
+    possessive: "CLC's",                 // for "{possessive} estimates are free"
+    address: "7024 Kerr Rd, London",
+    phone: "(519) 685-0257",             // their published main line (the demo never dials it)
+    tagline: "ISA Certified Arborists · In business since 1988",
+    serviceArea: "London and the surrounding area",   // their own wording; no invented town list
   },
 
   receptionist: { name: "Ava", role: "AI receptionist" },   // rename here; every line below uses {receptionist}
@@ -405,82 +412,217 @@ const CONFIG = {
   },
 
   intro: {
-    scenario: "<strong>You're a homeowner in London, Ontario.</strong> A storm just rolled through and you need help with a tree. Everything runs through one main number, so give it a call.",
+    pitch: "Everything at {business} runs through one main line. {receptionist} picks up when the team can't: after hours and while the crew is out on a job.",
+    pickLabel: "Pick a call to try",
     callLabel: "Call {businessPhone}",
   },
 
-  greeting: "Thanks for calling {business}, this is {receptionist}. How can I help?",
-  greetingSuggestions: [
-    "A tree came down in the storm",
-    "How much do you charge?",
-    "Am I talking to a real person?",
+  // Demo scenarios shown on the intro screen. The first one is the default.
+  // `samples` show up as one-tap answers so a demo can be clicked straight through.
+  scenarios: [
+    {
+      id: "storm",
+      title: "Storm emergency",
+      when: "Sunday morning",
+      blurb: "A big tree came down in last night's storm.",
+      flow: "emergency",
+      clock: { day: "Sunday", time: "8:12 AM" },
+      greeting: "Thanks for calling {business}, this is {receptionist}. I'm answering for the team this morning. How can I help?",
+      suggestions: ["A big tree came down in the storm last night", "Am I talking to a real person?", "How fast can you get here?"],
+      samples: { name: "Dave Morrison", address: "123 Maple St, London", phone: "519-555-0148" },
+    },
+    {
+      id: "estimate",
+      title: "Free estimate",
+      when: "Tuesday morning",
+      blurb: "A homeowner wants their maples pruned.",
+      flow: "estimate",
+      clock: { day: "Tuesday", time: "10:40 AM" },
+      greeting: "Thanks for calling {business}, this is {receptionist}. The crew's out on a job, so I'm taking their calls. How can I help?",
+      suggestions: ["I'd like a free estimate for pruning", "How much do you charge?", "Am I talking to a real person?"],
+      samples: { details: "Two big maples hanging over the driveway", name: "Linda Chen", address: "45 Elm Ave, London", phone: "519-555-0163", bestTime: "Mornings" },
+    },
   ],
-  greetingReply: {
-    detected: "I'm sorry to hear that. Sounds like {phrase}. Let me get a few details for the crew.",
-    afterGuardrail: "Let me get a few details for the crew.",
-    default: "I can help with that. Let me get a few details for the crew.",
+
+  // Which intake the caller's first words lead to. Checked in order; if nothing matches,
+  // the selected scenario's flow is used.
+  routing: [
+    { flow: "emergency", match: /\b(storm|fell|fallen|uprooted|toppled|blew (over|down)|came down|is down|went down|power lines?|hydro|wires?|hurt|injur\w*|emergency|urgent|crash(ed)?|split|snapped|on (my|the) (house|roof|car))\b/i },
+    { flow: "estimate", match: /\b(estimates?|quotes?|prun\w*|trim\w*|consult\w*|firewood|land clearing|clear(ing)? (my|the|a|some) (lot|land|property|brush)|plant health|assess\w*|look at|remov\w*|cut down|take down|taken down)\b/i },
+  ],
+
+  flows: {
+    // ---------------- storm / emergency ----------------
+    emergency: {
+      heading: "Storm damage call",
+      greetingReply: {
+        detected: "I'm sorry to hear that. Sounds like {phrase}. Let me get a few details for the crew.",
+        afterGuardrail: "Let me get a few details for the crew.",
+        default: "I can help with that. Let me get a few details for the crew.",
+      },
+      closing: {
+        normal: "Thanks, {first}. I've sent this summary to the crew, and someone from {business} will call you back at {phone}. In the meantime, please stay clear of the tree and any downed lines.",
+        urgent: "Thanks, {first}. I've sent this summary to the crew and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. Please stay clear of the tree and any downed lines.",
+      },
+      fields: [
+        { label: "Caller", key: "name" },
+        { label: "Number", key: "phone" },
+        { label: "Address", key: "address" },
+        { label: "What happened", key: "incident" },
+        { label: "Damage", key: "damage" },
+        { label: "Injuries", key: "injuries" },
+        { label: "Backup", key: "backup" },
+      ],
+      // types: "choice" (pick one), "multi" (pick several), "text", "phone"
+      steps: [
+        {
+          key: "incident",
+          label: "What happened",
+          type: "choice",
+          detectFromGreeting: true,
+          prompt: "Can you tell me what happened?",
+          retry: "Sorry, I didn't quite catch that. Is it a tree down, a limb down, a tree leaning, or something else?",
+          ack: "Okay, got it.",
+          placeholder: "Describe what happened…",
+          freeform: true, // unmatched text is kept as the caller's own description
+          options: [
+            { label: "Tree down", phrase: "a tree down",
+              match: /\btrees?\b.*\b(down|fell|fallen|over|uprooted|toppled|came down|knocked)\b|\b(uprooted|toppled)\b/i },
+            { label: "Limb down", phrase: "a limb down", priority: 2,
+              match: /\b(limbs?|branch(es)?|boughs?)\b/i },
+            { label: "Tree leaning", phrase: "a leaning tree", priority: 3,
+              match: /\b(lean(s|ing|ed)?|tilt(s|ing|ed)?|tipping)\b/i },
+            { label: "Something else", other: true, followUp: "No problem. Can you describe it briefly?" },
+          ],
+        },
+        {
+          key: "damage",
+          label: "Damage",
+          type: "multi",
+          prompt: "Did it hit a house, a car, or power lines?",
+          preselectFromSpeech: true, // things the caller already mentioned start ticked (they can untick)
+          hint: "Pick all that apply, then tap Continue.",
+          retry: "Sorry, did it hit a house, a car, or power lines? Or none of those?",
+          ack: "Thanks.",
+          placeholder: "House, car, power lines, or none…",
+          freeform: true,
+          options: [
+            { label: "House", match: /\b(house|home|roof|garage|deck|porch|building|shed|cottage)\b/i },
+            { label: "Car", match: /\b(cars?|vehicles?|truck|van|suv|driveway)\b/i },
+            { label: "Power lines", match: /\b(power|hydro|electric(al)?|wires?|lines?|cables?)\b/i },
+            { label: "None of those", none: true, summary: "No house, car or power lines hit",
+              match: /\b(no|none|nothing|neither|didn'?t|did not|missed|just the (yard|lawn|road|street))\b/i },
+          ],
+        },
+        {
+          key: "injuries",
+          label: "Injuries",
+          type: "choice",
+          prompt: "Is anyone hurt?",
+          retry: "Just to be sure, is anyone hurt? Yes or no?",
+          placeholder: "Yes or no…",
+          freeform: false,
+          askOnConflict: true, // "No, but my neighbour is hurt" -> ask again instead of guessing
+          options: [
+            { label: "Yes, someone is hurt", value: "Yes", summary: "YES, someone is hurt",
+              match: /\b(yes|yeah|yep|yup|ambulance|hurt|injured|injuries|bleeding|trapped|pinned)\b/i,
+              unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t|no injur\w*)\b[^.,!?]*\b(hurt|injur\w*|bleeding|trapped|pinned)\b/i },
+            { label: "No one is hurt", value: "No", summary: "No one hurt",
+              match: /\b(no|nope|nobody|no one|noone|not hurt|we'?re (ok|okay|fine|good|safe)|everyone'?s? (is )?(ok|okay|fine|safe|good)|all good)\b/i },
+          ],
+        },
+        "name",
+        { use: "address", prompt: "Thanks, {first}. What's the address where the tree is?" },
+        "phone",
+        {
+          key: "backup",
+          label: "Backup contact",
+          type: "text",
+          optional: true,                       // caller can skip it
+          prompt: "Is there anyone else the crew should call if they can't reach you?",
+          retry: "Sorry, who else should the crew call? Or just say no.",
+          placeholder: "Name and number, or no…",
+          skipChip: "No, just me",
+          skipValue: "None",
+          skip: /^(no|nope|nah|none|n\/?a|nobody|no one|just me|that'?s (it|fine|all)|no thanks?)\b/i,
+        },
+      ],
+    },
+
+    // ---------------- free estimate ----------------
+    estimate: {
+      heading: "Free estimate request",
+      greetingReply: {
+        detected: "Happy to help with {phrase}. Estimates are free, so I'll take a few details for the arborist.",
+        afterGuardrail: "Let me take a few details for the arborist.",
+        default: "Happy to help. Estimates are free, so I'll take a few details for the arborist.",
+      },
+      closing: {
+        normal: "Thanks, {first}. I've sent your request to the team. One of {possessive} ISA Certified Arborists will call you at {phone} to set up your free estimate.",
+        urgent: "Thanks, {first}. I've sent this to the team and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. Please stay clear of the tree and any downed lines.",
+      },
+      fields: [
+        { label: "Caller", key: "name" },
+        { label: "Number", key: "phone" },
+        { label: "Address", key: "address" },
+        { label: "Service", key: "service" },
+        { label: "Details", key: "details" },
+        { label: "Best time to call", key: "bestTime" },
+      ],
+      steps: [
+        {
+          key: "service",
+          label: "Service",
+          type: "choice",
+          detectFromGreeting: true,
+          prompt: "What kind of work are you looking for?",
+          retry: "Sorry, what kind of work is it? Pruning, removal, plant health care, or something else?",
+          placeholder: "Pruning, removal, firewood…",
+          freeform: true,
+          options: [
+            { label: "Pruning & maintenance", phrase: "pruning", match: /\b(prun\w*|trim\w*|thin\w*|maint\w*|overgrown|shap\w*|deadwood)\b/i },
+            { label: "Tree removal", phrase: "a tree removal", priority: 2, match: /\b(remov\w*|cut (it |them )?down|take (it |them )?down|taken down|dead tree|stump)\b/i },
+            { label: "Plant health care", phrase: "plant health care", match: /\b(health|disease\w*|sick|dying|insects?|pests?|fertili\w*|borer|blight)\b/i },
+            { label: "Consulting", phrase: "a consultation", match: /\b(consult\w*|assess\w*|inspect\w*|report|permit|advice)\b/i },
+            { label: "Land clearing", phrase: "land clearing", match: /\b(land clearing|clear(ing)? (the |a |my |some )?(lot|land|property|brush))\b/i },
+            { label: "Firewood", phrase: "firewood", match: /\b(fire ?wood|cords?)\b/i },
+            { label: "Something else", other: true, followUp: "Sure. What did you have in mind?" },
+          ],
+        },
+        {
+          key: "details",
+          label: "Details",
+          type: "text",
+          prompt: "Tell me a bit about the trees, like how many and roughly where they are on the property.",
+          retry: "Sorry, could you tell me a little about the trees?",
+          placeholder: "e.g. two maples over the driveway",
+          ack: "Got it.",
+        },
+        "name",
+        { use: "address", prompt: "Thanks, {first}. What's the address for the estimate?" },
+        "phone",
+        {
+          key: "bestTime",
+          label: "Best time to call",
+          type: "choice",
+          prompt: "Is there a best time for the arborist to reach you?",
+          retry: "Sorry, when's a good time to reach you?",
+          placeholder: "Mornings, after 5…",
+          freeform: true,
+          options: [
+            { label: "Mornings", match: /\bmornings?\b/i },
+            { label: "Afternoons", match: /\bafternoons?\b/i },
+            { label: "Evenings", match: /\b(evenings?|after (4|5|6|work))\b/i },
+            { label: "Any time", match: /\b(any ?time|whenever|doesn'?t matter|no preference)\b/i },
+          ],
+        },
+      ],
+    },
   },
 
-  // Intake questions, asked one at a time, in order.
-  // types: "choice" (pick one), "multi" (pick several), "text", "phone"
-  steps: [
-    {
-      key: "incident",
-      label: "What happened",
-      type: "choice",
-      detectFromGreeting: true,
-      prompt: "Can you tell me what happened?",
-      retry: "Sorry, I didn't quite catch that. Is it a tree down, a limb down, a tree leaning, or something else?",
-      ack: "Okay, got it.",
-      placeholder: "Describe what happened…",
-      freeform: true, // unmatched text is kept as the caller's own description
-      options: [
-        { label: "Tree down", phrase: "a tree down",
-          match: /\btrees?\b.*\b(down|fell|fallen|over|uprooted|toppled|came down|knocked)\b|\b(uprooted|toppled)\b/i },
-        { label: "Limb down", phrase: "a limb down", priority: 2,
-          match: /\b(limbs?|branch(es)?|boughs?)\b/i },
-        { label: "Tree leaning", phrase: "a leaning tree", priority: 3,
-          match: /\b(lean(s|ing|ed)?|tilt(s|ing|ed)?|tipping)\b/i },
-        { label: "Something else", other: true, followUp: "No problem. Can you describe it briefly?" },
-      ],
-    },
-    {
-      key: "damage",
-      label: "Damage",
-      type: "multi",
-      prompt: "Did it hit a house, a car, or power lines?",
-      preselectFromSpeech: true, // things the caller already mentioned start ticked (they can untick)
-      hint: "Pick all that apply, then tap Continue.",
-      retry: "Sorry, did it hit a house, a car, or power lines? Or none of those?",
-      ack: "Thanks.",
-      placeholder: "House, car, power lines, or none…",
-      freeform: true,
-      options: [
-        { label: "House", match: /\b(house|home|roof|garage|deck|porch|building|shed|cottage)\b/i },
-        { label: "Car", match: /\b(cars?|vehicles?|truck|van|suv|driveway)\b/i },
-        { label: "Power lines", match: /\b(power|hydro|electric(al)?|wires?|lines?|cables?)\b/i },
-        { label: "None of those", none: true, summary: "No house, car or power lines hit",
-          match: /\b(no|none|nothing|neither|didn'?t|did not|missed|just the (yard|lawn|road|street))\b/i },
-      ],
-    },
-    {
-      key: "injuries",
-      label: "Injuries",
-      type: "choice",
-      prompt: "Is anyone hurt?",
-      retry: "Just to be sure, is anyone hurt? Yes or no?",
-      placeholder: "Yes or no…",
-      freeform: false,
-      askOnConflict: true, // "No, but my neighbour is hurt" -> ask again instead of guessing
-      options: [
-        { label: "Yes, someone is hurt", value: "Yes", summary: "YES, someone is hurt",
-          match: /\b(yes|yeah|yep|yup|ambulance|hurt|injured|injuries|bleeding|trapped|pinned)\b/i,
-          unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t|no injur\w*)\b[^.,!?]*\b(hurt|injur\w*|bleeding|trapped|pinned)\b/i },
-        { label: "No one is hurt", value: "No", summary: "No one hurt",
-          match: /\b(no|nope|nobody|no one|noone|not hurt|we'?re (ok|okay|fine|good|safe)|everyone'?s? (is )?(ok|okay|fine|safe|good)|all good)\b/i },
-      ],
-    },
-    {
+  // Questions both flows share; flows list them by name, or override with { use: "address", … }.
+  sharedSteps: {
+    name: {
       key: "name",
       label: "Caller",
       type: "text",
@@ -489,16 +631,15 @@ const CONFIG = {
       placeholder: "Your name…",
       clean: /^(hi|hey|hello)?[,.\s]*(my name is|my name's|name's|this is|it's|it is|i'm|i am)\s+/i,
     },
-    {
+    address: {
       key: "address",
       label: "Address",
       type: "text",
-      areaCheck: true,
-      prompt: "Thanks, {first}. What's the address where the tree is?",
-      retry: "Sorry, what's the address where the tree is?",
+      prompt: "What's the address?",
+      retry: "Sorry, what's the address?",
       placeholder: "Street address…",
     },
-    {
+    phone: {
       key: "phone",
       label: "Callback",
       type: "phone",
@@ -506,39 +647,6 @@ const CONFIG = {
       retry: "Sorry, I didn't catch a full 10-digit number. What's the best callback number?",
       placeholder: "e.g. 519 555 0199",
     },
-    {
-      key: "backup",
-      label: "Backup contact",
-      type: "text",
-      optional: true,                       // caller can skip it
-      prompt: "Is there anyone else the crew should call if they can't reach you?",
-      retry: "Sorry, who else should the crew call? Or just say no.",
-      placeholder: "Name and number, or no…",
-      skipChip: "No, just me",
-      skipValue: "None",
-      skip: /^(no|nope|nah|none|n\/?a|nobody|no one|just me|that'?s (it|fine|all)|no thanks?)\b/i,
-    },
-  ],
-
-  // Opening hours decide which greeting the receptionist uses. Placeholder hours: confirm with the client.
-  // Days: 0 = Sunday … 6 = Saturday, [open hour, close hour] in 24h local time.
-  hours: {
-    timeZone: "America/Toronto",
-    weekly: { 1: [7, 18], 2: [7, 18], 3: [7, 18], 4: [7, 18], 5: [7, 18], 6: [8, 14] },
-    afterHoursGreeting: "Thanks for calling {business}, this is {receptionist}. The office is closed right now, but I can take your details and get them to the crew. How can I help?",
-    afterHoursTag: "After hours",
-  },
-
-  // The receptionist never turns anyone away; she flags addresses the crew should double-check.
-  serviceArea: {
-    places: ["London", "St. Thomas", "St Thomas", "Strathroy", "Komoka", "Kilworth", "Lambeth", "Dorchester",
-             "Ilderton", "Arva", "Thorndale", "Delaware", "Mount Brydges", "Belmont", "Ingersoll", "Byron", "Hyde Park"],
-    postalPrefixes: ["N5V", "N5W", "N5X", "N5Y", "N5Z", "N6A", "N6B", "N6C", "N6E", "N6G", "N6H", "N6J", "N6K", "N6L", "N6M", "N6N", "N6P"],
-    askTown: "And what town or city is that in?",
-    townChips: ["London", "St. Thomas", "Strathroy"],
-    outside: "That may be outside our usual service area, but I'll pass it along and the crew will confirm.",
-    insideLabel: "{town} (in service area)",
-    outsideLabel: "CHECK: {town} may be outside the usual area",
   },
 
   // Mark the call URGENT if any rule matches.
@@ -581,10 +689,11 @@ const CONFIG = {
   guardrails: [
     { id: "ai",
       match: /\b(are|r) (you|u) (an? )?(ai|a\.i\.|bot|robot|machine|computer|real|human|person|live|recording)\b|\bis (this|that) (an? )?(ai|bot|robot|real person|human|recording|machine)\b|\b(real|live|actual) (person|human)\b|\bai\b|\bchat ?bot\b/i,
-      reply: "Yes, I'm an AI receptionist for {business}. I take down your details and pass them straight to the crew." },
+      reply: "Yes, I'm an AI receptionist for {business}. I take down your details and pass them straight to the team." },
     { id: "price",
-      match: /\b(price|prices|pricing|cost|costs|how much|quotes?|estimates?|charge|rates?|fees?|expensive|cheap|afford)\b|\$/i,
-      reply: "I'm not able to give pricing, but the crew can go over that with you when they follow up." },
+      // "free estimate" is a request, not a price question, so estimate/quote aren't in here.
+      match: /\b(price|prices|pricing|cost|costs|how much|charge|rates?|fees?|expensive|cheap|afford)\b|\$/i,
+      reply: "I can't give prices over the phone, but {possessive} estimates are free, and the arborist will go over costs with you." },
     { id: "eta",
       match: /\b(when (will|can|are|do|could|would)|how (long|soon|fast|quick(ly)?)|arriv(e|al|ing)|eta|come out|get here|be here|show up|send someone)\b/i,
       reply: "I can't promise an arrival time, but I'll get your details to the crew so they can follow up with you." },
@@ -604,33 +713,16 @@ const CONFIG = {
     editPrompt: "Okay, what should the {label} be?",
   },
 
-  closing: {
-    normal: "Thanks, {first}. I've sent this summary to the crew, and someone from {business} will call you back at {phone}. In the meantime, please stay clear of the tree and any downed lines.",
-    urgent: "Thanks, {first}. I've sent this summary to the crew and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. Please stay clear of the tree and any downed lines.",
-  },
-
   // The text message the crew receives.
   summary: {
     title: "Text to {business}",
-    subtitle: "From {receptionist} · {role}",
-    heading: "New call intake",
-    afterHoursHeading: "New call intake (after hours)",
-    fields: [
-      { label: "Caller", key: "name" },
-      { label: "Number", key: "phone" },
-      { label: "Address", key: "address" },
-      { label: "What happened", key: "incident" },
-      { label: "Damage", key: "damage" },
-      { label: "Injuries", key: "injuries" },
-      { label: "Area", key: "area" },
-      { label: "Backup", key: "backup" },
-    ],
+    subtitle: "{businessPhone} · from {receptionist}, {role}",
     footer: "Taken by {receptionist} ({role})",
   },
 
   endScreen: {
     lede: "Here's the summary {receptionist} sent from your call.",
-    note: "{receptionist} never quotes prices or promises arrival times. The crew follows up directly.",
+    note: "{receptionist} never quotes prices or promises arrival times. The team follows up directly.",
   },
 
   timing: { minTyping: 350, perChar: 12, maxTyping: 1100, ringMs: 900, endDelayMs: 1500 },
@@ -647,7 +739,19 @@ const CONFIG = {
     headSub: $("headSub"), liveDot: $("liveDot"), urgentPill: $("urgentPill"),
     mic: $("mic"), voiceBtn: $("voiceBtn"),
   };
-  const STEPS = CONFIG.steps;
+  // Each flow's question list, with shared steps ("name", { use: "address", … }) filled in.
+  const FLOW_STEPS = {};
+  Object.entries(CONFIG.flows).forEach(([id, f]) => {
+    FLOW_STEPS[id] = f.steps.map((st) => (typeof st === "string" ? CONFIG.sharedSteps[st]
+      : st.use ? Object.assign({}, CONFIG.sharedSteps[st.use], st) : st));
+  });
+  let FLOW = null, STEPS = [];
+  let scenario = CONFIG.scenarios[0];
+  function setFlow(id) { FLOW = CONFIG.flows[id]; STEPS = FLOW_STEPS[id]; S.flow = id; }
+  function routeFlow(text) {
+    const hit = (CONFIG.routing || []).find((rt) => rt.match.test(text));
+    return hit ? hit.flow : scenario.flow;
+  }
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const FAST = /[?&]fast\b/.test(location.search);   // ?fast skips typing delays (used by the test suite)
 
@@ -663,6 +767,7 @@ const CONFIG = {
       business: CONFIG.business.shortName,
       businessName: CONFIG.business.name,
       businessPhone: CONFIG.business.phone,
+      possessive: CONFIG.business.possessive || CONFIG.business.shortName + "'s",
       receptionist: CONFIG.receptionist.name,
       role: CONFIG.receptionist.role,
       first: firstName(),
@@ -858,9 +963,13 @@ const CONFIG = {
       });
       els.chips.appendChild(go);
       if (step.hint) { const h = document.createElement("p"); h.className = "chip-hint"; h.textContent = step.hint; els.chips.appendChild(h); }
-    } else if (step.optional && step.skipChip) {
-      renderChips([{ label: step.skipChip, skip: true }]);
-    } else clearChips();
+    } else {
+      const list = [];
+      if (step.optional && step.skipChip) list.push({ label: step.skipChip, skip: true });
+      const sample = scenario.samples && scenario.samples[step.key];
+      if (sample && !S.editing) list.push({ label: sample, sample: true });
+      if (list.length) renderChips(list); else clearChips();
+    }
   }
 
   /* ---------- parsing ---------- */
@@ -939,7 +1048,7 @@ const CONFIG = {
           S.raw[step.key] = d.answers.value;
           S.answers[step.key] = opt ? optDisplay(opt) : d.answers.value;
           answered.push(step.key);
-        }
+        } else if (!step && !S.mentioned.includes(d.reason)) S.mentioned.push(d.reason);
       } else if (!S.mentioned.includes(d.reason)) S.mentioned.push(d.reason);
       if (d.preselect) (S.hints[d.preselect.key] = S.hints[d.preselect.key] || new Set()).add(d.preselect.value);
     });
@@ -968,29 +1077,9 @@ const CONFIG = {
 
   /* ---------- summary ---------- */
   function summaryRows() {
-    return CONFIG.summary.fields
+    return FLOW.fields
       .filter((f) => f.key !== "area" || S.answers.area)
       .map((f) => ({ label: f.label, value: S.answers[f.key] || "—" }));
-  }
-
-  /* ---------- office hours ---------- */
-  function isOpenNow() {
-    const H = CONFIG.hours; if (!H) return true;
-    try {
-      const parts = new Intl.DateTimeFormat("en-CA", { timeZone: H.timeZone, weekday: "short", hour: "numeric", hourCycle: "h23" }).formatToParts(new Date());
-      const day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((p) => p.type === "weekday").value);
-      const hour = Number(parts.find((p) => p.type === "hour").value);
-      const span = H.weekly[day];
-      return !!span && hour >= span[0] && hour < span[1];
-    } catch (e) { return true; }
-  }
-  // Time-zone lookup loads ICU data (~20ms on a phone), so do it after first paint, when idle.
-  let afterHours = null;
-  function resolveHours() { if (afterHours === null && CONFIG.hours) setHours(!isOpenNow()); }
-  function setHours(closed) {
-    afterHours = closed;
-    $("whenOpen").setAttribute("aria-checked", closed ? "false" : "true");
-    $("whenClosed").setAttribute("aria-checked", closed ? "true" : "false");
   }
 
   /* ---------- service area ---------- */
@@ -1058,10 +1147,10 @@ const CONFIG = {
     if (o && !o.other) {
       S.raw[step.key] = optValue(o); S.answers[step.key] = optDisplay(o);
       refreshUrgent();
-      await say(fill(CONFIG.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
+      await say(fill(FLOW.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
       S.idx = nextUnanswered(di + 1);
     } else {
-      await say(fill(guards.length || S.urgentAnnounced ? CONFIG.greetingReply.afterGuardrail : CONFIG.greetingReply.default));
+      await say(fill(guards.length || S.urgentAnnounced ? FLOW.greetingReply.afterGuardrail : FLOW.greetingReply.default));
       S.idx = nextUnanswered(0);
     }
     await askStep(STEPS[S.idx]);
@@ -1144,9 +1233,12 @@ const CONFIG = {
       name: /\bname\b/, phone: /\b(number|phone|callback|cell)\b/, address: /\b(address|street|location|town|city|area)\b/,
       incident: /\b(happened|what happened|incident|tree|limb)\b/, damage: /\b(damage|hit|house|car|power|lines?)\b/,
       injuries: /\b(hurt|injur\w*)\b/,
+      bestTime: /\b(best time|time to call|mornings?|afternoons?|evenings?)\b/,
+      service: /\b(service|kind of work|type of work|pruning|removal)\b/,
+      details: /\b(details|description|how many)\b/,
     };
     // Most specific first, so "backup number" doesn't land on the callback number.
-    const order = ["backup", "injuries", "damage", "incident", "address", "phone", "name"];
+    const order = ["backup", "bestTime", "service", "details", "injuries", "damage", "incident", "address", "phone", "name"];
     const byLabel = STEPS.find((s) => t.includes(s.label.toLowerCase()));
     const bySyn = order.map((k) => STEPS.find((s) => s.key === k)).find((s) => s && syn[s.key] && syn[s.key].test(t));
     return bySyn || byLabel;
@@ -1190,7 +1282,7 @@ const CONFIG = {
   async function finish() {
     S.phase = "done";
     clearChips(); setComposer(false, "Call ended");
-    await say(fill(S.urgentReasons.length ? CONFIG.closing.urgent : CONFIG.closing.normal));
+    await say(fill(S.urgentReasons.length ? FLOW.closing.urgent : FLOW.closing.normal));
     await untilQuiet(20000);
     stopTimer();
     sys("Call ended · " + mmss(Date.now() - S.start));
@@ -1210,7 +1302,8 @@ const CONFIG = {
       const guards = matchGuardrails(text);
       for (const g of guards) await say(fill(g.reply));
       S.justAnswered = [];
-      if (["greeting", "step", "followUp"].includes(S.phase) && !S.editing) {
+      if (S.phase === "greeting") setFlow(routeFlow(text));
+      if (["greeting", "step", "followUp"].includes(S.phase) && !S.editing && !(chip && (chip.option || chip.multi))) {
         S.justAnswered = detectFromSpeech(text);
         await announceUrgentIfNew();
       }
@@ -1232,10 +1325,10 @@ const CONFIG = {
   function stopTimer() { if (timer) clearInterval(timer); timer = null; els.liveDot.classList.add("off"); }
 
   async function startCall() {
-    resolveHours();
     const id = ++runId;
     hush(); stopListening();
     reset();
+    setFlow(scenario.flow);
     els.intro.hidden = true; els.end.hidden = true; els.call.hidden = false;
     els.chat.innerHTML = ""; clearChips(); setComposer(false);
     els.liveDot.classList.add("off");
@@ -1245,19 +1338,18 @@ const CONFIG = {
       await wait(CONFIG.timing.ringMs);
       if (id !== runId) return;
       S.start = Date.now(); els.liveDot.classList.remove("off"); startTimer();
-      sys(afterHours && CONFIG.hours ? "Connected · " + CONFIG.hours.afterHoursTag : "Connected");
+      sys("Connected");
       S.phase = "greeting";
       S.busy = true;
-      S.afterHours = !!afterHours;
-      await say(fill(afterHours && CONFIG.hours ? CONFIG.hours.afterHoursGreeting : CONFIG.greeting));
+      await say(fill(scenario.greeting));
       S.busy = false;
-      renderChips(CONFIG.greetingSuggestions.map((label) => ({ label })));
+      renderChips(scenario.suggestions.map((label) => ({ label })));
       setComposer(true, fill("Tell {receptionist} what's going on…"));
     } catch (e) { if (!(e instanceof Cancelled)) throw e; }
   }
 
   function summaryHeading() {
-    return fill(S.afterHours && CONFIG.summary.afterHoursHeading ? CONFIG.summary.afterHoursHeading : CONFIG.summary.heading);
+    return fill(FLOW.heading);
   }
   function summaryText() {
     const lines = [];
@@ -1297,10 +1389,10 @@ const CONFIG = {
   function showEnd() {
     renderTranscript();
     els.call.hidden = true; els.end.hidden = false;
-    const now = new Date();
-    const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    $("smsClock").textContent = time.replace(/\s?[AP]M$/i, "");
-    $("smsStamp").textContent = "Today " + time;
+    // The scenario sets the day and time, so the storm call lands on Sunday morning.
+    const clock = scenario.clock || { day: "Today", time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) };
+    $("smsClock").textContent = clock.time.replace(/\s?[AP]M$/i, "");
+    $("smsStamp").textContent = clock.day + " " + clock.time;
     $("smsAvatar").textContent = CONFIG.business.initials;
     $("smsTitle").textContent = fill(CONFIG.summary.title);
     $("smsSub").textContent = fill(CONFIG.summary.subtitle);
@@ -1321,7 +1413,7 @@ const CONFIG = {
   function reset() {
     S = { phase: "intro", idx: 0, answers: {}, raw: {}, urgentReasons: [], urgentAnnounced: false,
           busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now(),
-          mentioned: [], justAnswered: [], hints: {}, soft: {}, log: [], pendingStep: null, afterHours: false };
+          mentioned: [], justAnswered: [], hints: {}, soft: {}, log: [], pendingStep: null, flow: null };
     els.urgentPill.hidden = true;
   }
 
@@ -1331,8 +1423,26 @@ const CONFIG = {
   reset();
   $("introLogo").textContent = CONFIG.business.initials;
   $("introName").textContent = CONFIG.business.name;
-  $("introWhere").textContent = CONFIG.business.location + " · " + CONFIG.business.tagline;
-  $("introScenario").innerHTML = CONFIG.intro.scenario;
+  $("introWhere").textContent = CONFIG.business.tagline + "\n" + CONFIG.business.address + " · Serving " + CONFIG.business.serviceArea;
+  $("introScenario").textContent = fill(CONFIG.intro.pitch);
+  $("pickLabel").textContent = fill(CONFIG.intro.pickLabel);
+  $("picker").setAttribute("aria-label", fill(CONFIG.intro.pickLabel));
+  const pickBtns = CONFIG.scenarios.map((sc) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pick"; b.setAttribute("role", "radio");
+    b.innerHTML = '<span class="w"></span><span class="t"></span><span class="b"></span>';
+    b.querySelector(".w").textContent = sc.when;
+    b.querySelector(".t").textContent = sc.title;
+    b.querySelector(".b").textContent = sc.blurb;
+    b.addEventListener("click", () => chooseScenario(sc));
+    $("picker").appendChild(b);
+    return b;
+  });
+  function chooseScenario(sc) {
+    scenario = sc;
+    pickBtns.forEach((b, i) => b.setAttribute("aria-checked", CONFIG.scenarios[i] === sc ? "true" : "false"));
+  }
+  chooseScenario(scenario);
   $("callBtnLabel").textContent = fill(CONFIG.intro.callLabel);
   $("headAvatar").textContent = CONFIG.receptionist.name[0];
   $("headName").textContent = CONFIG.receptionist.name + " · " + CONFIG.receptionist.role;
@@ -1340,12 +1450,7 @@ const CONFIG = {
   $("endLede").textContent = fill(CONFIG.endScreen.lede);
   $("endNote").textContent = fill(CONFIG.endScreen.note);
 
-  if (CONFIG.hours) {
-    (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(resolveHours, { timeout: 1000 });
-    $("whenOpen").addEventListener("click", () => setHours(false));
-    $("whenClosed").addEventListener("click", () => setHours(true));
-  } else document.querySelector(".when").hidden = true;
-  if (FAST) window.__receptionist = { state: () => S, config: CONFIG, checkArea };
+  if (FAST) window.__receptionist = { state: () => S, config: CONFIG, steps: () => STEPS, scenario: () => scenario.id, checkArea };
 
   $("callBtn").addEventListener("click", startCall);
   $("restartTop").addEventListener("click", startCall);

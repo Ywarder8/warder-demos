@@ -1,43 +1,47 @@
-# Presenting the AI receptionist demo
+# Presenting the CLC Tree Services demo
 
-A 3-minute walkthrough that shows every feature. Works best on a phone, or a laptop with
-the browser window narrowed. Turn the volume up so the client hears Ava's voice.
+Two calls, about 90 seconds each. Every answer has a one-tap button, so the whole demo can be
+clicked through on a phone without typing. Turn the volume up to hear Ava.
 
-## Before the meeting
+## Before sending or showing it
 
-- Open the demo once and tap Call, so the browser has already loaded its voices and asked
-  for the microphone (if you plan to talk instead of type).
-- Check `CONFIG` has the client's real phone number, hours and service-area towns.
-- Chrome, Edge or Safari for voice input. Firefox works but without the mic.
+- Open the link once and run a call, so the browser loads its voices (and asks for the
+  microphone, if you want to talk instead of tap).
+- Chrome, Edge or Safari for voice input. Firefox works, but without the mic.
 
-## The script
+## Call 1: Storm emergency (the default)
 
-1. **The normal call (about 60 seconds).** Leave the toggle on Office hours and tap Call.
-   Say or type *"A tree came down in the storm."* Ava skips straight past "what happened".
-   Tap **House**, then **No one is hurt**, give a name, *"45 King St"* (no town), and Ava
-   asks which town. Answer **London**, give a number, tap **No, just me**, then confirm.
-   Point out the text message the crew receives.
+Based on the review on CLC's own site: a big tree down late Saturday night, the customer calls
+Sunday morning.
 
-2. **The emergency (about 45 seconds).** Start over and say *"A tree fell on the power lines
-   and my husband is hurt."* The red URGENT banner appears immediately, Ava tells the caller
-   the crew is being notified and to stay clear, Power lines is already ticked, and she
-   never asks whether anyone is hurt because the caller already said so.
+1. Tap **Call (519) 685-0257**. Ava says she's answering for the team this morning.
+2. Tap **A big tree came down in the storm last night**. Ava skips "what happened".
+3. Tap **Power lines** and **House**, then **Continue**. The red URGENT banner appears and
+   Ava says the crew is being notified and to stay clear of the tree and any downed lines.
+4. Tap the sample answers (**No one is hurt**, name, address, number, **No, just me**), then
+   **Yes, that's right**.
+5. The crew's text arrives: CLC's number at the top, stamped Sunday 8:12 AM, URGENT flag.
 
-3. **The guardrails (about 30 seconds).** At any question, ask *"How much is this going to
-   cost?"*, *"When can you get here?"* or *"Am I talking to a real person?"* Ava doesn't
-   quote prices or times, says she's an AI, then goes straight back to her question.
+For the dramatic version, type or say *"A tree fell on the power lines and my husband is
+hurt"* at step 2. URGENT fires immediately, Power lines is pre-ticked, and Ava never asks
+whether anyone is hurt because the caller already said so.
 
-4. **Fixing a mistake.** At the read-back, say *"No, the address is wrong."* Ava jumps
-   straight to the address and reads everything back again.
+## Call 2: Free estimate (the Tuesday call)
 
-5. **After hours.** Back on the intro screen, switch to After hours. The greeting changes
-   and the crew's text is labelled after hours.
+1. Back on the intro screen, pick **Free estimate**, then Call. Ava says the crew's out on a job.
+2. Tap **I'd like a free estimate for pruning**. Ava confirms estimates are free.
+3. Tap through the sample answers: two maples over the driveway, name, address, number,
+   **Mornings**.
+4. The text arrives as a **Free estimate request**, stamped Tuesday, no URGENT flag.
 
-## Questions clients ask
+Try *"How much do you charge?"* at any point: Ava won't quote, says CLC's estimates are free,
+and goes back to her question.
 
-- **"Is this the real thing?"** It's a scripted demo of the call flow and the summary the
-  crew gets. The production version answers real calls on the business's number.
-- **"Can she say no to jobs outside our area?"** She never turns callers away; she flags the
-  address so the crew decides. That's a setting.
-- **"Can we change what she asks?"** Yes. The questions, wording, urgent rules and name are
-  all in one settings block.
+## Questions they might ask
+
+- **"Is this the real thing?"** It's a demo of the call flow and the summary the crew gets.
+  The real version answers CLC's actual line when nobody can pick up.
+- **"Does she give prices or arrival times?"** Never. She points to the free estimate and
+  says the crew will follow up.
+- **"Can we change what she asks?"** Yes. The questions, wording, urgent rules and her name
+  are all in one settings block.

@@ -35,18 +35,21 @@ const GUARDS = [
   "Is this a real person", "can you give me a quote", "how soon can someone come out"
 ];
 const VALID = {
-  greeting: ["A tree came down", "hello", "hi I need help", "the power lines are down and someone is hurt", "a big limb fell on my car"],
+  greeting: ["A tree came down", "hello", "hi I need help", "the power lines are down and someone is hurt", "a big limb fell on my car",
+             "I'd like a free estimate", "can someone prune my maples", "I need a dead tree removed", "do you sell firewood"],
   incident: ["a big branch came down", "tree is leaning on the garage", "Tree fell over", "there's a crack in the trunk"],
   damage: ["the house", "my car and the power lines", "nothing", "it hit the fence", "none of those"],
   injuries: ["no", "yes", "nobody is hurt", "my son is hurt", "no one is hurt"],
+  service: ["pruning", "removal", "my oak looks sick", "firewood", "I need advice on a permit"],
+  details: ["two maples over the driveway", "one big oak", "a row of cedars"],
+  bestTime: ["mornings", "after 5", "any time", "weekends"],
   name: ["Jane Doe", "bob smith", "My name is Priya Patel", "O'Neil-Ramírez"],
-  address: ["12 Oak St, London", "45 King St", "9 Main St, Toronto", "100 Elm Rd N6A 1B2", "22 Pine Cres, Strathroy", "7 Bay St M5J 2N8"],
-  areaTown: ["London", "Woodstock", "St. Thomas", "it's in Komoka"],
+  address: ["12 Oak St, London", "45 King St", "100 Elm Rd N6A 1B2", "22 Pine Cres, Strathroy"],
   phone: ["519-555-0199", "(226) 555 0100", "1 519 555 0123", "five one nine five five five zero one two three"],
   backup: ["no", "My wife Ana 519 555 0111", "No, just me", "my neighbour Tom"],
   followUp: ["a stump is rotting", "roots lifting the driveway"],
   confirm: ["yes", "yes", "yep that's right", "no the address is wrong", "something's wrong"],
-  editPick: ["address", "name", "phone", "backup"],
+  editPick: ["address", "name", "phone", "backup", "best time"],
 };
 
 async function newPage(browser, viewport = { width: 390, height: 844 }) {
@@ -89,26 +92,36 @@ const smsText = (page) => page.innerText("#smsBody");
 const agentLines = (page) => page.$$eval("#chat .row.agent .bubble", (ns) => ns.map((n) => n.innerText));
 
 /* ------------------------------------------------------------------ */
+async function pickScenario(page, title) {
+  if (!(await page.isVisible("#intro"))) await page.reload();
+  await page.click(`.pick:has-text(${JSON.stringify(title)})`);
+}
+
 async function scenarios(browser) {
   console.log("Scenarios");
   const { page, errors } = await newPage(browser);
 
-  // 1. Happy path, not urgent, chips only
+  // 1. Storm scenario tapped straight through with chips and sample answers (the demo's main path)
+  ok(/Sunday morning/i.test(await page.innerText(".pick[aria-checked='true']")), "storm scenario is selected by default");
+  ok(/Call \(519\) 685-0257/.test(await page.innerText("#callBtn")), "call button shows CLC's real number");
+  ok(/Serving London and the surrounding area/.test(await page.innerText("#introWhere")), "service area uses CLC's own wording");
   await startCall(page);
-  await chip(page, "A tree came down in the storm");
-  await chip(page, "None of those"); await chip(page, "Continue");
+  await chip(page, "A big tree came down in the storm last night");
+  ok((await page.evaluate(() => window.__receptionist.state().flow)) === "emergency", "storm call routes to the emergency intake");
+  await chip(page, "House"); await chip(page, "Continue");
   await chip(page, "No one is hurt");
-  await send(page, "Jane Doe"); await send(page, "12 Oak St, London"); await send(page, "519 555 0199");
+  await chip(page, "Dave Morrison"); await chip(page, "123 Maple St, London"); await chip(page, "519-555-0148");
   await chip(page, "No, just me");
   await chip(page, "Yes, that's right");
   await page.waitForSelector("#end:not([hidden])");
   let t = await smsText(page);
-  ok(!/URGENT/.test(t), "non-urgent call must not be flagged URGENT");
-  ok(/Caller: Jane Doe/.test(t) && /Number: \(519\) 555-0199/.test(t), "summary has caller + formatted number");
-  ok(/Area: London \(in service area\)/.test(t) && /Backup: None/.test(t), "summary has area + backup");
-  ok(/What happened: Tree down/.test(t), "incident detected from greeting");
+  ok(!/URGENT/.test(t), "storm call with no injuries or power lines is not URGENT");
+  ok(/Storm damage call/.test(t) && /Caller: Dave Morrison/.test(t) && /Number: \(519\) 555-0148/.test(t), "storm summary has caller + number");
+  ok(/What happened: Tree down/.test(t) && /Backup: None/.test(t), "storm summary has incident + backup");
+  ok(/\(519\) 685-0257/.test(await page.innerText(".thread-head")), "SMS header shows CLC's number");
+  ok((await page.innerText("#smsStamp")) === "Sunday 8:12 AM", "storm text is stamped Sunday morning");
 
-  // 2. Urgent from first sentence, injury pre-filled, power lines pre-selected
+  // 2. Urgent from the first sentence: injury pre-filled, power lines pre-ticked
   await startCall(page);
   await send(page, "A tree fell on the power lines and my husband is hurt");
   await settle(page);
@@ -118,11 +131,8 @@ async function scenarios(browser) {
   const pressed = await page.$$eval('.chip[aria-pressed="true"]', (n) => n.map((x) => x.textContent));
   ok(pressed.includes("Power lines"), "power lines pre-selected in damage step");
   await chip(page, "Continue");
-  st = await page.evaluate(() => window.__receptionist.state());
-  ok(st.phase === "step" && st.answers.injuries && !/hurt\?/.test((await agentLines(page)).slice(-1)[0]), "injury question skipped");
+  ok(!/hurt\?/.test((await agentLines(page)).slice(-1)[0]), "injury question skipped");
   await send(page, "Sam Lee"); await send(page, "5 Elm Ave");
-  ok((await page.evaluate(() => window.__receptionist.state().phase)) === "areaTown", "asks for town when address has none");
-  await chip(page, "London");
   await send(page, "five one nine five five five zero one nine nine");
   await send(page, "my brother Ray 226 555 0142");
   await send(page, "yes");
@@ -131,53 +141,64 @@ async function scenarios(browser) {
   ok(/URGENT/.test(t) && /Power lines involved/.test(t) && /Someone is hurt/.test(t), "SMS shows URGENT + both reasons");
   ok(/Number: \(519\) 555-0199/.test(t), "spoken digits parsed");
   ok(/Backup: My brother Ray \(226\) 555-0142/.test(t), "backup number formatted");
-  ok(/Address: 5 Elm Ave, London/.test(t), "town appended to address");
 
-  // 3. Guardrails: AI / price / ETA / safety, and receptionist never quotes
+  // 3. Free estimate scenario, tapped straight through: never URGENT
+  await pickScenario(page, "Free estimate"); await startCall(page);
+  ok((await agentLines(page)).some((l) => /crew's out on a job/.test(l)), "estimate greeting says the crew is out");
+  await chip(page, "I'd like a free estimate for pruning");
+  st = await page.evaluate(() => window.__receptionist.state());
+  ok(st.flow === "estimate" && st.answers.service === "Pruning & maintenance", "pruning request routes to estimate intake with service detected");
+  ok(!(await agentLines(page)).some((l) => /pricing|prices/.test(l)), "asking for a free estimate doesn't trigger the price answer");
+  await chip(page, "Two big maples hanging over the driveway");
+  await chip(page, "Linda Chen"); await chip(page, "45 Elm Ave, London"); await chip(page, "519-555-0163"); await chip(page, "Mornings");
+  await chip(page, "Yes, that's right");
+  await page.waitForSelector("#end:not([hidden])");
+  t = await smsText(page);
+  ok(!/URGENT/.test(t), "estimate request is never URGENT");
+  ok(/Free estimate request/.test(t) && /Service: Pruning & maintenance/.test(t) && /Best time to call: Mornings/.test(t), "estimate summary fields");
+  ok((await page.innerText("#smsStamp")) === "Tuesday 10:40 AM", "estimate text is stamped Tuesday");
+  ok((await agentLines(page)).some((l) => /ISA Certified Arborists will call you/.test(l) && /CLC's/.test(l)), "estimate closing names the arborists");
+
+  // 4. Guardrails: AI / price / ETA / safety, and the receptionist never quotes
   await startCall(page);
   await send(page, "Are you an AI? How much do you charge? When can you get here? Is it safe to cut it myself?");
   await settle(page);
   const lines = (await agentLines(page)).join("\n");
   ok(/I'm an AI receptionist/.test(lines), "AI question answered honestly");
-  ok(/not able to give pricing/.test(lines), "price deflected");
+  ok(/can't give prices over the phone, but CLC's estimates are free/.test(lines), "price deflected toward free estimate");
   ok(/can't promise an arrival time/.test(lines), "ETA deflected");
   ok(/stay clear of the tree and any downed lines/.test(lines), "safety answer limited to stay-clear");
 
-  // 4. Contradictory injury answer, out-of-area address, edit flow
+  // 5. Typed estimate (removal), contradictory answers in the storm flow, edit flow
   await startCall(page);
-  await chip(page, "A tree came down in the storm");
-  await chip(page, "House"); await chip(page, "Continue");
-  await send(page, "yes and no");
+  await send(page, "I want a dead tree taken down");
+  st = await page.evaluate(() => window.__receptionist.state());
+  ok(st.flow === "estimate" && st.answers.service === "Tree removal", "removal request routes to estimate intake");
+  await send(page, "one ash in the backyard"); await send(page, "Al Ng"); await send(page, "9 Oak St, London");
+  await send(page, "5195550100"); await send(page, "after 5");
   await settle(page);
-  ok((await page.evaluate(() => window.__receptionist.state().answers.injuries)) == null, "contradictory injury answer is re-asked");
-  await send(page, "no");
-  await send(page, "Ann Lee"); await send(page, "9 Main St, Toronto");
-  await settle(page);
-  ok((await agentLines(page)).some((l) => /outside our usual service area/.test(l)), "out-of-area warning given");
-  await send(page, "5195550100"); await send(page, "no");
+  ok((await page.evaluate(() => window.__receptionist.state().answers.bestTime)) === "Evenings", "'after 5' understood as evenings");
   await send(page, "no the address is wrong");
   await settle(page);
   ok((await page.evaluate(() => window.__receptionist.state().editing)) === "address", "edit jumps straight to address");
   await send(page, "14 Oak St, London");
   await send(page, "Something needs fixing");
-  await chip(page, "Backup contact");
-  await send(page, "Mo 519 555 0177");
+  await chip(page, "Best time to call");
+  await chip(page, "Any time");
   await send(page, "yes");
   await page.waitForSelector("#end:not([hidden])");
   t = await smsText(page);
-  ok(/Address: 14 Oak St, London/.test(t) && /Area: London/.test(t), "edited address re-checked area");
-  ok(/Backup: Mo \(519\) 555-0177/.test(t), "edited backup kept");
-  ok(/Injuries: No one hurt/.test(t) && !/URGENT/.test(t), "not urgent after clarified no");
+  ok(/Address: 14 Oak St, London/.test(t) && /Best time to call: Any time/.test(t), "edits kept");
 
-  // 5. After-hours greeting
-  await page.click("#restartEnd");
-  await page.reload(); await page.click("#whenClosed"); await startCall(page);
-  ok((await agentLines(page)).some((l) => /office is closed/.test(l)), "after-hours greeting used");
+  await pickScenario(page, "Storm emergency"); await startCall(page);
+  await chip(page, "A big tree came down in the storm last night");
+  await chip(page, "House"); await chip(page, "Continue");
+  await send(page, "yes and no");
+  await settle(page);
+  ok((await page.evaluate(() => window.__receptionist.state().answers.injuries)) == null, "contradictory injury answer is re-asked");
 
   // 6. Copy summary + transcript
-  await page.reload(); await startCall(page);
-  await chip(page, "A tree came down in the storm"); await chip(page, "None of those"); await chip(page, "Continue");
-  await chip(page, "No one is hurt"); await send(page, "Al"); await send(page, "1 Main St, Arva"); await send(page, "5195550101");
+  await send(page, "no"); await chip(page, "Dave Morrison"); await chip(page, "123 Maple St, London"); await chip(page, "519-555-0148");
   await chip(page, "No, just me"); await chip(page, "Yes, that's right");
   await page.waitForSelector("#end:not([hidden])");
   ok((await page.$$("#transcript p")).length > 10, "transcript rendered");
@@ -198,9 +219,9 @@ async function stress(browser) {
 
   for (let run = 0; run < RUNS; run++) {
     if (run && run % 50 === 0) { await page.close(); ({ page, errors } = await newPage(browser)); }
-    if (rand() < 0.3) { // sometimes go back to the intro screen and flip office hours
+    if (rand() < 0.4) { // sometimes go back to the intro screen and switch scenario
       await page.reload();
-      await page.click(rand() < 0.5 ? "#whenOpen" : "#whenClosed", { timeout: 2000 });
+      await page.click(`.pick >> nth=${rand() < 0.5 ? 0 : 1}`, { timeout: 2000 });
     }
     const tC = Date.now();
     try { await startCall(page); if (process.env.DEBUG) console.log(`  startCall ${Date.now() - tC}ms`); } catch (e) { fail(`run ${run}: could not start call: ${e.message}`); continue; }
@@ -217,7 +238,7 @@ async function stress(browser) {
       actions++;
       const r = rand();
       const tA = Date.now();
-      const stepKey = await page.evaluate(() => { const s = window.__receptionist.state(); return s.phase === "step" ? window.__receptionist.config.steps[s.idx].key : s.phase; });
+      const stepKey = await page.evaluate(() => { const s = window.__receptionist.state(); return s.phase === "step" ? window.__receptionist.steps()[s.idx].key : s.phase; });
 
       if (r < 0.03) { // restart mid-call
         await page.click("#restartTop"); aborted++; break;
@@ -265,6 +286,8 @@ async function stress(browser) {
     const powerAnswer = Array.isArray(st.raw.damage) && st.raw.damage.includes("Power lines");
     ok(!powerAnswer || st.urgentReasons.includes("Power lines involved"), `run ${run}: power lines => urgent`);
     ok(st.raw.injuries !== "Yes" || st.urgentReasons.includes("Someone is hurt"), `run ${run}: injury => urgent`);
+    ok(st.flow !== "estimate" || st.urgentReasons.length === 0 || st.mentioned.length > 0, `run ${run}: estimate calls only urgent if caller reported danger`);
+    ok(/\(519\) 685-0257/.test(await page.innerText(".thread-head")), `run ${run}: SMS shows CLC's number`);
     ok(!st.urgentReasons.includes("Someone is hurt") || st.raw.injuries === "Yes", `run ${run}: urgent injury only if injuries=Yes`);
     ok(await page.$$eval("#chat img, #chat script, #smsBody img, #transcript img", (n) => n.length) === 0, `run ${run}: no injected HTML`);
     ok(!/\$\s?\d|\b\d+\s*(minutes?|mins?|hours?|hrs?)\b|\bwithin\b|\bon (our|the) way\b/i.test(wl), `run ${run}: receptionist never quotes price/time`);
