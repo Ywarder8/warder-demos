@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14382b">
+<title>AI Receptionist Demo</title>
+<style>
+  :root {
+    /* Overridden at boot from CONFIG.theme */
+    --brand-900: #0f2d22;
+    --brand-800: #14382b;
+    --brand-700: #1d4d3b;
+    --brand-500: #2e7a59;
+    --brand-300: #8cc9a6;
+    --char-950: #141618;
+    --char-900: #1b1e21;
+    --char-800: #23272b;
+    --char-700: #2d3237;
+    --char-600: #3a4046;
+    --text: #edf2ee;
+    --muted: #9ea9a3;
+    --urgent: #e5484d;
+    --urgent-bg: #3a1618;
+    --radius: 18px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--char-950);
+    background-image: radial-gradient(1200px 600px at 50% -10%, rgba(46,122,89,.18), transparent 60%);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--brand-300); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .app {
+    max-width: 560px;
+    margin: 0 auto;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--char-900);
+    border-left: 1px solid var(--char-800);
+    border-right: 1px solid var(--char-800);
+  }
+
+  /* ---------- Intro ---------- */
+  .intro {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 32px 24px;
+    gap: 18px;
+  }
+  .logo {
+    width: 84px; height: 84px; border-radius: 24px;
+    display: grid; place-items: center;
+    background: linear-gradient(145deg, var(--brand-500), var(--brand-800));
+    font-weight: 800; letter-spacing: .5px; font-size: 22px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .intro h1 { margin: 6px 0 0; font-size: 26px; line-height: 1.2; }
+  .intro .where { color: var(--muted); margin: 0; font-size: 15px; }
+  .scenario {
+    background: var(--char-800); border: 1px solid var(--char-700);
+    border-radius: 14px; padding: 14px 16px; max-width: 380px;
+    color: #cfd7d2; font-size: 15px; line-height: 1.5;
+  }
+  .scenario strong { color: var(--text); }
+  .call-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    border: 0; border-radius: 999px;
+    padding: 15px 26px; font-size: 17px; font-weight: 650;
+    background: var(--brand-500); color: #fff;
+    box-shadow: 0 8px 24px rgba(46,122,89,.35);
+    transition: transform .12s ease, background .15s ease;
+  }
+  .call-btn:hover { background: #33875f; }
+  .call-btn:active { transform: scale(.97); }
+  .call-btn svg { width: 20px; height: 20px; }
+  .fineprint { color: var(--muted); font-size: 12.5px; margin: 0; }
+
+  /* ---------- Call header ---------- */
+  .call-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    background: var(--brand-800);
+    border-bottom: 1px solid var(--brand-900);
+  }
+  .avatar {
+    flex: none; width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--brand-500); font-weight: 700; font-size: 16px;
+  }
+  .who { flex: 1; min-width: 0; }
+  .who .name { font-weight: 650; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .who .sub { color: var(--brand-300); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #5fd68f; box-shadow: 0 0 0 0 rgba(95,214,143,.6); animation: pulse 1.8s infinite; }
+  .live-dot.off { background: var(--muted); animation: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(95,214,143,.55);} 70% { box-shadow: 0 0 0 7px rgba(95,214,143,0);} 100% { box-shadow: 0 0 0 0 rgba(95,214,143,0);} }
+  .urgent-pill {
+    flex: none; font-size: 11.5px; font-weight: 800; letter-spacing: .8px;
+    color: #fff; background: var(--urgent); border-radius: 999px; padding: 4px 9px;
+  }
+  .icon-btn {
+    flex: none; border: 1px solid rgba(255,255,255,.14); background: transparent;
+    border-radius: 10px; padding: 7px 10px; font-size: 13px; color: #d8e6dd;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,.06); }
+
+  /* ---------- Chat ---------- */
+  .chat {
+    flex: 1; overflow-y: auto; padding: 18px 14px 8px;
+    display: flex; flex-direction: column; gap: 10px;
+    scroll-behavior: smooth;
+  }
+  .row { display: flex; gap: 8px; align-items: flex-end; }
+  .row.caller { justify-content: flex-end; }
+  .row .mini {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--brand-700); display: grid; place-items: center;
+    font-size: 11.5px; font-weight: 700; color: var(--brand-300);
+  }
+  .bubble {
+    max-width: 82%; padding: 10px 14px; border-radius: var(--radius);
+    font-size: 15.5px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word;
+    animation: rise .22s ease-out;
+  }
+  .wren .bubble { background: var(--char-700); border-bottom-left-radius: 6px; }
+  .caller .bubble { background: var(--brand-500); color: #fff; border-bottom-right-radius: 6px; }
+  .wren .bubble.alert { background: var(--urgent-bg); border: 1px solid rgba(229,72,77,.5); }
+  .wren .bubble.alert b { color: #ff8b8e; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+  .sys {
+    align-self: center; font-size: 12.5px; color: var(--muted);
+    background: var(--char-800); border-radius: 999px; padding: 5px 12px;
+  }
+  .card { padding: 12px 14px; white-space: normal; }
+  .card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 14.5px; }
+  .card dt { color: var(--muted); }
+  .card dd { margin: 0; }
+  .card .flag { grid-column: 1 / -1; color: #ff8b8e; font-weight: 800; letter-spacing: .5px; }
+  .typing { display: inline-flex; gap: 4px; padding: 13px 14px; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: .3; transform: none;} 30% { opacity: 1; transform: translateY(-2px);} }
+
+  /* ---------- Composer ---------- */
+  .composer {
+    border-top: 1px solid var(--char-800);
+    background: var(--char-900);
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chips:empty { display: none; }
+  .chip {
+    border: 1px solid var(--brand-500); background: transparent; color: var(--brand-300);
+    border-radius: 999px; padding: 8px 14px; font-size: 14.5px;
+    transition: background .12s ease, color .12s ease;
+  }
+  .chip:hover { background: rgba(46,122,89,.18); }
+  .chip[aria-pressed="true"] { background: var(--brand-500); color: #fff; }
+  .chip.primary { background: var(--brand-500); color: #fff; font-weight: 600; }
+  .chip.primary:disabled { opacity: .4; cursor: not-allowed; }
+  .chip-hint { width: 100%; font-size: 12.5px; color: var(--muted); margin: -2px 0 0; }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input {
+    flex: 1; min-width: 0;
+    background: var(--char-800); border: 1px solid var(--char-700); color: var(--text);
+    border-radius: 999px; padding: 12px 16px; font-size: 16px;
+  }
+  .input-row input::placeholder { color: #77827c; }
+  .input-row input:disabled { opacity: .55; }
+  .send {
+    flex: none; width: 46px; height: 46px; border-radius: 50%; border: 0;
+    background: var(--brand-500); display: grid; place-items: center;
+  }
+  .send:disabled { opacity: .4; cursor: not-allowed; }
+  .send svg { width: 20px; height: 20px; }
+
+  /* ---------- End screen ---------- */
+  .end {
+    flex: 1; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 32px; gap: 18px;
+  }
+  .end h2 { margin: 0; font-size: 20px; text-align: center; }
+  .end .lede { margin: -8px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+  .phone {
+    width: 100%; max-width: 360px;
+    background: #000; border-radius: 44px; padding: 12px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5), inset 0 0 0 2px #2b2f33;
+  }
+  .screen { background: #f2f2f4; color: #111; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; min-height: 560px; }
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 4px; font-size: 13px; font-weight: 600; }
+  .status .island { width: 92px; height: 24px; background: #000; border-radius: 14px; }
+  .thread-head { text-align: center; padding: 8px 12px 12px; border-bottom: 1px solid #dcdce0; background: #f7f7f9; }
+  .thread-head .tav {
+    width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 6px;
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px;
+    background: linear-gradient(145deg, var(--brand-500), var(--brand-800));
+  }
+  .thread-head .tt { font-weight: 650; font-size: 14.5px; }
+  .thread-head .ts { color: #6b6f76; font-size: 12px; margin-top: 2px; }
+  .thread { flex: 1; padding: 14px 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .thread .stamp { text-align: center; color: #8a8e95; font-size: 11.5px; margin-bottom: 8px; }
+  .sms {
+    align-self: flex-end; max-width: 88%;
+    background: var(--brand-500); color: #fff;
+    border-radius: 18px; border-bottom-right-radius: 5px;
+    padding: 10px 13px; font-size: 14.5px; line-height: 1.42;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  .sms .urgent-tag {
+    display: inline-block; background: var(--urgent); color: #fff; font-weight: 800; letter-spacing: .6px;
+    border-radius: 6px; padding: 2px 7px; margin-bottom: 6px; font-size: 13px;
+  }
+  .sms b { font-weight: 650; }
+  .delivered { align-self: flex-end; color: #8a8e95; font-size: 11.5px; margin-right: 4px; }
+  .compose-bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px 14px; }
+  .compose-bar span { flex: 1; border: 1px solid #d0d0d6; border-radius: 999px; padding: 7px 12px; color: #9a9ea5; font-size: 13.5px; background: #fff; }
+  .restart {
+    border: 0; border-radius: 999px; padding: 13px 28px; font-weight: 650; font-size: 16px;
+    background: var(--brand-500); color: #fff;
+  }
+  .restart:hover { background: #33875f; }
+  .note { color: var(--muted); font-size: 12.5px; text-align: center; max-width: 360px; margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+  @media (min-width: 600px) {
+    .app { margin-top: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Intro -->
+  <section class="intro" id="intro">
+    <div class="logo" id="introLogo"></div>
+    <div>
+      <h1 id="introName"></h1>
+      <p class="where" id="introWhere"></p>
+    </div>
+    <div class="scenario" id="introScenario"></div>
+    <button class="call-btn" id="callBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+      <span id="callBtnLabel"></span>
+    </button>
+    <p class="fineprint">Demo only. Nothing you type leaves your browser.</p>
+  </section>
+
+  <!-- Call -->
+  <section id="call" hidden style="display:flex; flex-direction:column; flex:1; min-height:0;">
+    <header class="call-head">
+      <div class="avatar" id="headAvatar"></div>
+      <div class="who">
+        <div class="name" id="headName"></div>
+        <div class="sub"><span class="live-dot" id="liveDot"></span><span id="headSub"></span></div>
+      </div>
+      <span class="urgent-pill" id="urgentPill" hidden>URGENT</span>
+      <button class="icon-btn" id="restartTop" aria-label="Start over">Start over</button>
+    </header>
+    <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Call transcript"></div>
+    <div class="composer">
+      <div class="chips" id="chips"></div>
+      <form class="input-row" id="form" autocomplete="off">
+        <input id="input" type="text" aria-label="Your reply" placeholder="Type your reply…" disabled>
+        <button class="send" id="send" type="submit" aria-label="Send" disabled>
+          <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- End screen -->
+  <section class="end" id="end" hidden>
+    <h2>The crew's phone just buzzed</h2>
+    <p class="lede" id="endLede"></p>
+    <div class="phone" aria-label="Text message mockup">
+      <div class="screen">
+        <div class="status"><span id="smsClock">9:41</span><span class="island"></span><span>5G ▮▮▮</span></div>
+        <div class="thread-head">
+          <div class="tav" id="smsAvatar"></div>
+          <div class="tt" id="smsTitle"></div>
+          <div class="ts" id="smsSub"></div>
+        </div>
+        <div class="thread">
+          <div class="stamp" id="smsStamp"></div>
+          <div class="sms" id="smsBody"></div>
+          <div class="delivered">Delivered</div>
+        </div>
+        <div class="compose-bar"><span>Text Message</span></div>
+      </div>
+    </div>
+    <button class="restart" id="restartEnd">Start over</button>
+    <p class="note" id="endNote"></p>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — swap this object to reuse the demo for another business.
+   Everything business-specific (names, wording, questions, urgency
+   rules, guardrails, summary layout, colours) lives here.
+   ===================================================================== */
+const CONFIG = {
+  business: {
+    name: "CLC Tree Services Ltd",
+    shortName: "CLC Tree Services",
+    initials: "CLC",
+    location: "London, Ontario",
+    phone: "(519) 555-0142",            // placeholder: swap in the real main line
+    tagline: "Tree care with a rapid response team for storm emergencies",
+  },
+
+  receptionist: { name: "Wren", role: "AI receptionist" },
+
+  theme: {
+    "--brand-900": "#0f2d22",
+    "--brand-800": "#14382b",
+    "--brand-700": "#1d4d3b",
+    "--brand-500": "#2e7a59",
+    "--brand-300": "#8cc9a6",
+    "--char-950": "#141618",
+    "--char-900": "#1b1e21",
+  },
+
+  intro: {
+    scenario: "<strong>You're a homeowner in London, Ontario.</strong> A storm just rolled through and you need help with a tree. Everything runs through one main number, so give it a call.",
+    callLabel: "Call {businessPhone}",
+  },
+
+  greeting: "Thanks for calling CLC Tree Services, this is Wren. How can I help?",
+  greetingSuggestions: [
+    "A tree came down in the storm",
+    "How much do you charge?",
+    "Am I talking to a real person?",
+  ],
+  greetingReply: {
+    detected: "I'm sorry to hear that. Sounds like {phrase}. Let me get a few details for the crew.",
+    afterGuardrail: "Let me get a few details for the crew.",
+    default: "I can help with that. Let me get a few details for the crew.",
+  },
+
+  // Intake questions, asked one at a time, in order.
+  // types: "choice" (pick one), "multi" (pick several), "text", "phone"
+  steps: [
+    {
+      key: "incident",
+      label: "What happened",
+      type: "choice",
+      detectFromGreeting: true,
+      prompt: "Can you tell me what happened?",
+      retry: "Sorry, I didn't quite catch that. Is it a tree down, a limb down, a tree leaning, or something else?",
+      ack: "Okay, got it.",
+      placeholder: "Describe what happened…",
+      freeform: true, // unmatched text is kept as the caller's own description
+      options: [
+        { label: "Tree down", phrase: "a tree down",
+          match: /\btrees?\b.*\b(down|fell|fallen|over|uprooted|toppled|came down|knocked)\b|\b(uprooted|toppled)\b/i },
+        { label: "Limb down", phrase: "a limb down", priority: 2,
+          match: /\b(limbs?|branch(es)?|boughs?)\b/i },
+        { label: "Tree leaning", phrase: "a leaning tree", priority: 3,
+          match: /\b(lean(s|ing|ed)?|tilt(s|ing|ed)?|tipping)\b/i },
+        { label: "Something else", other: true, followUp: "No problem. Can you describe it briefly?" },
+      ],
+    },
+    {
+      key: "damage",
+      label: "Damage",
+      type: "multi",
+      prompt: "Did it hit a house, a car, or power lines?",
+      hint: "Pick all that apply, then tap Continue.",
+      retry: "Sorry, did it hit a house, a car, or power lines? Or none of those?",
+      ack: "Thanks.",
+      placeholder: "House, car, power lines, or none…",
+      freeform: true,
+      options: [
+        { label: "House", match: /\b(house|home|roof|garage|deck|porch|building|shed|cottage)\b/i },
+        { label: "Car", match: /\b(cars?|vehicles?|truck|van|suv|driveway)\b/i },
+        { label: "Power lines", match: /\b(power|hydro|electric(al)?|wires?|lines?|cables?)\b/i },
+        { label: "None of those", none: true, summary: "No house, car or power lines hit",
+          match: /\b(no|none|nothing|neither|didn'?t|did not|missed|just the (yard|lawn|road|street))\b/i },
+      ],
+    },
+    {
+      key: "injuries",
+      label: "Injuries",
+      type: "choice",
+      prompt: "Is anyone hurt?",
+      retry: "Just to be sure, is anyone hurt? Yes or no?",
+      placeholder: "Yes or no…",
+      freeform: false,
+      options: [
+        { label: "Yes, someone is hurt", value: "Yes", summary: "YES, someone is hurt",
+          match: /\b(yes|yeah|yep|yup|hurt|injur\w*|bleeding|trapped|pinned|ambulance)\b/i },
+        { label: "No one is hurt", value: "No", summary: "No one hurt", priority: 2,
+          match: /\b(no|nope|nobody|no one|noone|not hurt|we'?re (ok|okay|fine|good)|everyone'?s? (is )?(ok|okay|fine|safe|good)|all good)\b/i },
+      ],
+    },
+    {
+      key: "name",
+      label: "Caller",
+      type: "text",
+      prompt: "Can I get your name, please?",
+      retry: "Sorry, could I get your name?",
+      placeholder: "Your name…",
+      clean: /^(hi|hey|hello)?[,.\s]*(my name is|my name's|name's|this is|it's|it is|i'm|i am)\s+/i,
+    },
+    {
+      key: "address",
+      label: "Address",
+      type: "text",
+      prompt: "Thanks, {first}. What's the address where the tree is?",
+      retry: "Sorry, what's the address where the tree is?",
+      placeholder: "Street address…",
+    },
+    {
+      key: "phone",
+      label: "Callback",
+      type: "phone",
+      prompt: "And what's the best number to call you back on?",
+      retry: "Sorry, I didn't catch a full 10-digit number. What's the best callback number?",
+      placeholder: "e.g. 519 555 0199",
+    },
+  ],
+
+  // Mark the call URGENT if any rule matches.
+  urgent: {
+    label: "URGENT",
+    rules: [
+      { key: "damage", includes: "Power lines", reason: "Power lines involved" },
+      { key: "injuries", equals: "Yes", reason: "Someone is hurt" },
+    ],
+    callerMessage: "I'm marking this call <b>URGENT</b>, and the crew will be notified right away. Please stay clear of the tree and any downed lines.",
+  },
+
+  // Things callers ask mid-intake, and how Wren answers. Checked on every reply.
+  guardrails: [
+    { id: "ai",
+      match: /\b(are|r) (you|u) (an? )?(ai|a\.i\.|bot|robot|machine|computer|real|human|person|live|recording)\b|\bis (this|that) (an? )?(ai|bot|robot|real person|human|recording|machine)\b|\b(real|live|actual) (person|human)\b|\bai\b|\bchat ?bot\b/i,
+      reply: "Yes, I'm an AI receptionist for {business}. I take down your details and pass them straight to the crew." },
+    { id: "price",
+      match: /\b(price|prices|pricing|cost|costs|how much|quotes?|estimates?|charge|rates?|fees?|expensive|cheap|afford)\b|\$/i,
+      reply: "I'm not able to give pricing, but the crew can go over that with you when they follow up." },
+    { id: "eta",
+      match: /\b(when (will|can|are|do|could|would)|how (long|soon|fast|quick(ly)?)|arriv(e|al|ing)|eta|come out|get here|be here|show up|send someone)\b/i,
+      reply: "I can't promise an arrival time, but I'll get your details to the crew so they can follow up with you." },
+    { id: "safety",
+      match: /\b(is it safe|safe to|should i|can i (cut|move|touch|go|remove|drive|get|pull)|what (should|do) i do|is it (ok|okay) to|dangerous)\b/i,
+      reply: "The best thing I can tell you is to stay clear of the tree and any downed lines." },
+  ],
+
+  confirm: {
+    intro: "Let me read that back to you.",
+    question: "Is all of that correct?",
+    yesLabel: "Yes, that's right",
+    noLabel: "Something needs fixing",
+    yes: /\b(yes|yeah|yep|yup|correct|right|good|perfect|great|that'?s it|all set|looks good|sounds good)\b/i,
+    no: /\b(no|nope|wrong|fix|change|incorrect|not right|not quite|actually|mistake|typo)\b/i,
+    editAsk: "Sure. What needs changing?",
+    editPrompt: "Okay, what should the {label} be?",
+  },
+
+  closing: {
+    normal: "Thanks, {first}. I've sent this summary to the crew, and someone from {business} will call you back at {phone}. In the meantime, please stay clear of the tree and any downed lines.",
+    urgent: "Thanks, {first}. I've sent this summary to the crew and flagged it URGENT, so they're being notified right away. They'll call you back at {phone}. Please stay clear of the tree and any downed lines.",
+  },
+
+  // The text message the crew receives.
+  summary: {
+    title: "Text to {business}",
+    subtitle: "From {receptionist} · {role}",
+    heading: "New call intake",
+    fields: [
+      { label: "Caller", key: "name" },
+      { label: "Number", key: "phone" },
+      { label: "Address", key: "address" },
+      { label: "What happened", key: "incident" },
+      { label: "Damage", key: "damage" },
+      { label: "Injuries", key: "injuries" },
+    ],
+    footer: "Taken by {receptionist} ({role})",
+  },
+
+  endScreen: {
+    lede: "Here's the summary {receptionist} sent from your call.",
+    note: "{receptionist} never quotes prices or promises arrival times. The crew follows up directly.",
+  },
+
+  timing: { minTyping: 450, perChar: 16, maxTyping: 1500, ringMs: 1100, endDelayMs: 1800 },
+};
+
+/* =====================================================================
+   Engine — generic, driven entirely by CONFIG.
+   ===================================================================== */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    intro: $("intro"), call: $("call"), end: $("end"),
+    chat: $("chat"), chips: $("chips"), form: $("form"), input: $("input"), send: $("send"),
+    headSub: $("headSub"), liveDot: $("liveDot"), urgentPill: $("urgentPill"),
+  };
+  const STEPS = CONFIG.steps;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  class Cancelled extends Error {}
+  let runId = 0;
+  let S;
+  let timer = null;
+
+  /* ---------- helpers ---------- */
+  const firstName = () => (S.answers.name || "").split(/\s+/)[0] || "";
+  function fill(tpl, extra = {}) {
+    const vars = {
+      business: CONFIG.business.shortName,
+      businessName: CONFIG.business.name,
+      businessPhone: CONFIG.business.phone,
+      receptionist: CONFIG.receptionist.name,
+      role: CONFIG.receptionist.role,
+      first: firstName(),
+      name: S ? S.answers.name || "" : "",
+      phone: S ? S.answers.phone || "" : "",
+      address: S ? S.answers.address || "" : "",
+      ...extra,
+    };
+    return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m))
+      .replace(/,\s*\./g, ".").replace(/\s+([.,])/g, "$1");   // tidy when {first} is empty
+  }
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? Math.min(ms, 150) : ms));
+  async function wait(ms) { const id = runId; await sleep(ms); if (id !== runId) throw new Cancelled(); }
+  const capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const mmss = (ms) => { const t = Math.floor(ms / 1000); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
+
+  /* ---------- rendering ---------- */
+  function scrollDown() { els.chat.scrollTop = els.chat.scrollHeight; }
+  function addRow(who, node) {
+    const row = document.createElement("div");
+    row.className = "row " + who;
+    if (who === "wren") {
+      const mini = document.createElement("div");
+      mini.className = "mini"; mini.setAttribute("aria-hidden", "true");
+      mini.textContent = CONFIG.receptionist.name[0];
+      row.appendChild(mini);
+    }
+    row.appendChild(node);
+    els.chat.appendChild(row);
+    scrollDown();
+    return row;
+  }
+  function bubble(who, text, { html = false, cls = "" } = {}) {
+    const b = document.createElement("div");
+    b.className = "bubble " + cls;
+    if (html) b.innerHTML = text; else b.textContent = text;
+    return addRow(who, b);
+  }
+  function sys(text) {
+    const d = document.createElement("div");
+    d.className = "sys"; d.textContent = text;
+    els.chat.appendChild(d); scrollDown();
+  }
+  async function say(text, opts = {}) {
+    const typing = document.createElement("div");
+    typing.className = "bubble typing"; typing.setAttribute("aria-label", CONFIG.receptionist.name + " is typing");
+    typing.innerHTML = "<i></i><i></i><i></i>";
+    const row = addRow("wren", typing);
+    const plain = text.replace(/<[^>]+>/g, "");
+    const t = CONFIG.timing;
+    try { await wait(Math.min(t.maxTyping, t.minTyping + plain.length * t.perChar)); }
+    finally { row.remove(); }
+    bubble("wren", text, opts);
+  }
+
+  function setComposer(enabled, placeholder) {
+    els.input.disabled = !enabled; els.send.disabled = !enabled;
+    els.input.placeholder = placeholder || "Type your reply…";
+    if (enabled && !("ontouchstart" in window)) els.input.focus();
+  }
+  function clearChips() { els.chips.innerHTML = ""; }
+  function renderChips(list) {
+    clearChips();
+    list.forEach((c) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = c.label;
+      b.addEventListener("click", () => handleInput(c.label, c));
+      els.chips.appendChild(b);
+    });
+  }
+  function renderStepChips(step) {
+    if (step.type === "choice") {
+      renderChips(step.options.map((o) => ({ label: o.label, option: o })));
+    } else if (step.type === "multi") {
+      clearChips();
+      S.multiSel = new Set();
+      const go = document.createElement("button");
+      go.type = "button"; go.className = "chip primary"; go.textContent = "Continue"; go.disabled = true;
+      const btns = step.options.map((o) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.textContent = o.label; b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", () => {
+          if (S.multiSel.has(o)) S.multiSel.delete(o);
+          else {
+            if (o.none) S.multiSel.clear();
+            else step.options.filter((x) => x.none).forEach((x) => S.multiSel.delete(x));
+            S.multiSel.add(o);
+          }
+          btns.forEach((bb, i) => bb.setAttribute("aria-pressed", S.multiSel.has(step.options[i]) ? "true" : "false"));
+          go.disabled = S.multiSel.size === 0;
+        });
+        els.chips.appendChild(b);
+        return b;
+      });
+      go.addEventListener("click", () => {
+        const picked = step.options.filter((o) => S.multiSel.has(o));
+        handleInput(picked.map((o) => o.label).join(", "), { multi: picked });
+      });
+      els.chips.appendChild(go);
+      if (step.hint) { const h = document.createElement("p"); h.className = "chip-hint"; h.textContent = step.hint; els.chips.appendChild(h); }
+    } else clearChips();
+  }
+
+  /* ---------- parsing ---------- */
+  function matchGuardrails(text) { return CONFIG.guardrails.filter((g) => g.match.test(text)); }
+  function bestOption(options, text) {
+    const hits = options.filter((o) => o.match && o.match.test(text));
+    hits.sort((a, b) => (b.priority || 1) - (a.priority || 1));
+    return hits[0] || null;
+  }
+  const optValue = (o) => o.value || o.label;
+  const optDisplay = (o) => o.summary || o.label;
+
+  function parse(step, text, chip, guarded) {
+    const isQuestion = /\?\s*$/.test(text);
+    if (step.type === "choice") {
+      const o = chip && chip.option ? chip.option : bestOption(step.options, text);
+      if (o && o.other && o.followUp) return { followUp: o };
+      if (o) return { ok: true, raw: optValue(o), display: optDisplay(o) };
+      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: "Other", display: capFirst(text) };
+      return { ok: false };
+    }
+    if (step.type === "multi") {
+      let picked = chip && chip.multi ? chip.multi : step.options.filter((o) => o.match && o.match.test(text));
+      if (picked.some((o) => !o.none)) picked = picked.filter((o) => !o.none);
+      if (picked.length) return { ok: true, raw: picked.map(optValue), display: picked.map(optDisplay).join(", ") };
+      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: ["Other"], display: capFirst(text) };
+      return { ok: false };
+    }
+    if (step.type === "phone") {
+      let d = text.replace(/\D/g, "");
+      if (d.length === 11 && d[0] === "1") d = d.slice(1);
+      if (d.length !== 10) return { ok: false };
+      const f = `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+      return { ok: true, raw: f, display: f };
+    }
+    // text
+    if (guarded || isQuestion) return { ok: false };
+    let v = text.replace(step.clean || /^$/, "").replace(/[.!]+$/, "").trim();
+    if (v.length < 2) return { ok: false };
+    if (step.key === "name" && v === v.toLowerCase()) v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+    return { ok: true, raw: v, display: v };
+  }
+
+  /* ---------- urgency ---------- */
+  function computeUrgent() {
+    return CONFIG.urgent.rules.filter((r) => {
+      const v = S.raw[r.key];
+      if (v == null) return false;
+      if (r.includes) return Array.isArray(v) ? v.includes(r.includes) : v === r.includes;
+      if (r.equals) return v === r.equals;
+      return false;
+    }).map((r) => r.reason);
+  }
+  function refreshUrgent() {
+    S.urgentReasons = computeUrgent();
+    els.urgentPill.hidden = S.urgentReasons.length === 0;
+    const newly = S.urgentReasons.length > 0 && !S.urgentAnnounced;
+    if (newly) S.urgentAnnounced = true;
+    return newly;
+  }
+
+  /* ---------- summary ---------- */
+  function summaryRows() {
+    return CONFIG.summary.fields.map((f) => ({ label: f.label, value: S.answers[f.key] || "—" }));
+  }
+
+  /* ---------- flow ---------- */
+  async function askStep(step, override) {
+    S.phase = "step";
+    await say(fill(override || step.prompt));
+    renderStepChips(step);
+    setComposer(true, step.placeholder);
+  }
+
+  async function accept(step, r) {
+    S.raw[step.key] = r.raw;
+    S.answers[step.key] = r.display;
+    const newly = refreshUrgent();
+    if (S.editing) {
+      S.editing = null;
+      if (newly) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
+      return goConfirm();
+    }
+    if (step.ack) await say(fill(step.ack));
+    if (newly) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
+    S.idx++;
+    if (S.idx < STEPS.length) await askStep(STEPS[S.idx]);
+    else await goConfirm();
+  }
+
+  async function onGreeting(text, chip, guards) {
+    const di = STEPS.findIndex((s) => s.detectFromGreeting);
+    const step = STEPS[di];
+    const o = step ? bestOption(step.options, text) : null;
+    if (o && !o.other) {
+      S.raw[step.key] = optValue(o); S.answers[step.key] = optDisplay(o);
+      refreshUrgent();
+      await say(fill(CONFIG.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
+      S.idx = di + 1;
+    } else {
+      await say(fill(guards.length ? CONFIG.greetingReply.afterGuardrail : CONFIG.greetingReply.default));
+      S.idx = 0;
+    }
+    await askStep(STEPS[S.idx]);
+  }
+
+  async function onStep(text, chip, guards) {
+    const step = STEPS[S.idx];
+    const r = parse(step, text, chip, guards.length > 0);
+    if (r.followUp) {
+      S.phase = "followUp"; S.pendingOption = r.followUp;
+      await say(fill(r.followUp.followUp));
+      clearChips(); setComposer(true, step.placeholder);
+      return;
+    }
+    if (!r.ok) {
+      // If a guardrail already answered, just re-ask the question; otherwise ask for clarification.
+      await say(fill(guards.length ? step.prompt : step.retry || step.prompt));
+      renderStepChips(step); setComposer(true, step.placeholder);
+      return;
+    }
+    await accept(step, r);
+  }
+
+  async function onFollowUp(text, chip, guards) {
+    const step = STEPS[S.idx];
+    if (guards.length || text.length < 2) {
+      await say(fill(S.pendingOption.followUp));
+      setComposer(true, step.placeholder);
+      return;
+    }
+    S.phase = "step";
+    await accept(step, { ok: true, raw: "Other", display: capFirst(text) });
+  }
+
+  async function goConfirm() {
+    S.phase = "confirm";
+    await say(fill(CONFIG.confirm.intro));
+    await wait(250);
+    const card = document.createElement("div");
+    card.className = "bubble card";
+    const dl = document.createElement("dl");
+    if (S.urgentReasons.length) {
+      const f = document.createElement("div"); f.className = "flag";
+      f.textContent = CONFIG.urgent.label + ": " + S.urgentReasons.join(", ");
+      dl.appendChild(f);
+    }
+    summaryRows().forEach(({ label, value }) => {
+      const dt = document.createElement("dt"); dt.textContent = label;
+      const dd = document.createElement("dd"); dd.textContent = value;
+      dl.append(dt, dd);
+    });
+    card.appendChild(dl);
+    addRow("wren", card);
+    await say(fill(CONFIG.confirm.question));
+    renderChips([{ label: CONFIG.confirm.yesLabel, yes: true }, { label: CONFIG.confirm.noLabel, no: true }]);
+    setComposer(true, "Yes, or tell me what to fix…");
+  }
+
+  function findStepMention(text) {
+    const t = text.toLowerCase();
+    const syn = {
+      name: /\bname\b/, phone: /\b(number|phone|callback|cell)\b/, address: /\b(address|street|location)\b/,
+      incident: /\b(happened|what happened|incident|tree|limb)\b/, damage: /\b(damage|hit|house|car|power|lines?)\b/,
+      injuries: /\b(hurt|injur\w*)\b/,
+    };
+    return STEPS.find((s) => t.includes(s.label.toLowerCase()) || (syn[s.key] && syn[s.key].test(t)));
+  }
+
+  async function onConfirm(text, chip, guards) {
+    const c = CONFIG.confirm;
+    let yes = chip ? !!chip.yes : false, no = chip ? !!chip.no : false;
+    if (!chip) { no = c.no.test(text); yes = !no && c.yes.test(text); }
+    if (yes) return finish();
+    if (no) {
+      const direct = !chip && findStepMention(text);
+      if (direct) return startEdit(direct);
+      S.phase = "editPick";
+      await say(fill(c.editAsk));
+      renderChips(STEPS.map((s) => ({ label: s.label, step: s })));
+      setComposer(true, "Which detail?");
+      return;
+    }
+    await say(fill(c.question));
+    renderChips([{ label: c.yesLabel, yes: true }, { label: c.noLabel, no: true }]);
+    setComposer(true);
+  }
+
+  async function startEdit(step) {
+    S.editing = step.key;
+    S.idx = STEPS.indexOf(step);
+    const override = step.type === "text" || step.type === "phone"
+      ? fill(CONFIG.confirm.editPrompt, { label: step.label.toLowerCase() }) : step.prompt;
+    await askStep(step, override);
+  }
+
+  async function onEditPick(text, chip, guards) {
+    const step = (chip && chip.step) || findStepMention(text);
+    if (step) return startEdit(step);
+    await say(fill(CONFIG.confirm.editAsk));
+    renderChips(STEPS.map((s) => ({ label: s.label, step: s })));
+    setComposer(true, "Which detail?");
+  }
+
+  async function finish() {
+    S.phase = "done";
+    clearChips(); setComposer(false, "Call ended");
+    await say(fill(S.urgentReasons.length ? CONFIG.closing.urgent : CONFIG.closing.normal));
+    stopTimer();
+    sys("Call ended · " + mmss(Date.now() - S.start));
+    await wait(CONFIG.timing.endDelayMs);
+    showEnd();
+  }
+
+  async function handleInput(text, chip = null) {
+    text = String(text || "").trim();
+    if (S.busy || !text || S.phase === "done" || S.phase === "intro") return;
+    const st = S;
+    st.busy = true;
+    clearChips(); setComposer(false); els.input.value = "";
+    bubble("caller", text);
+    try {
+      const guards = matchGuardrails(text);
+      for (const g of guards) await say(fill(g.reply));
+      const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, confirm: onConfirm, editPick: onEditPick };
+      await handlers[S.phase](text, chip, guards);
+    } catch (e) {
+      if (!(e instanceof Cancelled)) throw e;
+    } finally {
+      st.busy = false;
+    }
+  }
+
+  /* ---------- screens ---------- */
+  function startTimer() {
+    stopTimer();
+    const tick = () => { els.headSub.textContent = CONFIG.business.shortName + " · " + mmss(Date.now() - S.start); };
+    tick(); timer = setInterval(tick, 1000);
+  }
+  function stopTimer() { if (timer) clearInterval(timer); timer = null; els.liveDot.classList.add("off"); }
+
+  async function startCall() {
+    const id = ++runId;
+    reset();
+    els.intro.hidden = true; els.end.hidden = true; els.call.hidden = false;
+    els.chat.innerHTML = ""; clearChips(); setComposer(false);
+    els.liveDot.classList.add("off");
+    els.headSub.textContent = "Calling " + CONFIG.business.phone + "…";
+    sys("Calling " + CONFIG.business.shortName + "…");
+    try {
+      await wait(CONFIG.timing.ringMs);
+      if (id !== runId) return;
+      S.start = Date.now(); els.liveDot.classList.remove("off"); startTimer();
+      sys("Connected");
+      S.phase = "greeting";
+      S.busy = true;
+      await say(fill(CONFIG.greeting));
+      S.busy = false;
+      renderChips(CONFIG.greetingSuggestions.map((label) => ({ label })));
+      setComposer(true, "Tell Wren what's going on…");
+    } catch (e) { if (!(e instanceof Cancelled)) throw e; }
+  }
+
+  function showEnd() {
+    els.call.hidden = true; els.end.hidden = false;
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    $("smsClock").textContent = time.replace(/\s?[AP]M$/i, "");
+    $("smsStamp").textContent = "Today " + time;
+    $("smsAvatar").textContent = CONFIG.business.initials;
+    $("smsTitle").textContent = fill(CONFIG.summary.title);
+    $("smsSub").textContent = fill(CONFIG.summary.subtitle);
+    const body = $("smsBody");
+    let html = "";
+    if (S.urgentReasons.length) {
+      html += `<span class="urgent-tag">${escapeHtml(CONFIG.urgent.label)}</span>\n${escapeHtml(S.urgentReasons.join(" · "))}\n\n`;
+    }
+    html += `<b>${escapeHtml(fill(CONFIG.summary.heading))}</b>\n`;
+    html += summaryRows().map(({ label, value }) => `${escapeHtml(label)}: ${escapeHtml(value)}`).join("\n");
+    html += `\n\n${escapeHtml(fill(CONFIG.summary.footer))}`;
+    body.innerHTML = html;
+    els.end.scrollTop = 0;
+    $("restartEnd").focus({ preventScroll: true });
+  }
+
+  function reset() {
+    S = { phase: "intro", idx: 0, answers: {}, raw: {}, urgentReasons: [], urgentAnnounced: false,
+          busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now() };
+    els.urgentPill.hidden = true;
+  }
+
+  /* ---------- boot ---------- */
+  Object.entries(CONFIG.theme || {}).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+  document.title = CONFIG.business.shortName + " · " + CONFIG.receptionist.name;
+  reset();
+  $("introLogo").textContent = CONFIG.business.initials;
+  $("introName").textContent = CONFIG.business.name;
+  $("introWhere").textContent = CONFIG.business.location + " · " + CONFIG.business.tagline;
+  $("introScenario").innerHTML = CONFIG.intro.scenario;
+  $("callBtnLabel").textContent = fill(CONFIG.intro.callLabel);
+  $("headAvatar").textContent = CONFIG.receptionist.name[0];
+  $("headName").textContent = CONFIG.receptionist.name + " · " + CONFIG.receptionist.role;
+  $("urgentPill").textContent = CONFIG.urgent.label;
+  $("endLede").textContent = fill(CONFIG.endScreen.lede);
+  $("endNote").textContent = fill(CONFIG.endScreen.note);
+
+  $("callBtn").addEventListener("click", startCall);
+  $("restartTop").addEventListener("click", startCall);
+  $("restartEnd").addEventListener("click", startCall);
+  els.form.addEventListener("submit", (e) => { e.preventDefault(); handleInput(els.input.value); });
+})();
+</script>
+</body>
+</html>
