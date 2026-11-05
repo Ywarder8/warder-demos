@@ -1164,12 +1164,15 @@ const CONFIG = {
     const o = step ? bestOption(step.options, text) : null;
     if (o && !o.other) {
       S.raw[step.key] = optValue(o); S.answers[step.key] = optDisplay(o);
-      refreshUrgent();
+      const newlyUrgent = refreshUrgent();
       await say(fill(FLOW.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
+      if (newlyUrgent) await say(urgentMessage(), { html: true, cls: "alert" });
       await announcePriorityIfNew();
       S.idx = nextUnanswered(di + 1);
     } else {
-      await say(fill(guards.length || S.urgentAnnounced ? FLOW.greetingReply.afterGuardrail : FLOW.greetingReply.default));
+      const heldUrgent = CONFIG.urgent.announceAfterGreeting && refreshUrgent();
+      await say(fill(guards.length || S.urgentAnnounced && !heldUrgent ? FLOW.greetingReply.afterGuardrail : FLOW.greetingReply.default));
+      if (heldUrgent) await say(urgentMessage(), { html: true, cls: "alert" });
       S.idx = nextUnanswered(0);
     }
     await askStep(STEPS[S.idx]);
@@ -1228,11 +1231,11 @@ const CONFIG = {
     const dl = document.createElement("dl");
     if (S.urgentReasons.length) {
       const f = document.createElement("div"); f.className = "flag";
-      f.textContent = CONFIG.urgent.label + ": " + S.urgentReasons.join(", ");
+      f.textContent = CONFIG.urgent.label + ": " + reasonsText(S.urgentReasons, CONFIG.urgent);
       dl.appendChild(f);
     } else if (S.priorityReasons.length) {
       const f = document.createElement("div"); f.className = "flag amber";
-      f.textContent = CONFIG.priorityTier.label + ": " + S.priorityReasons.join(", ");
+      f.textContent = CONFIG.priorityTier.label + ": " + reasonsText(S.priorityReasons, CONFIG.priorityTier);
       dl.appendChild(f);
     }
     readBackRows().forEach(({ label, value }) => {
@@ -1352,7 +1355,7 @@ const CONFIG = {
       if (S.phase === "greeting") setFlow(routeFlow(text));
       if (["greeting", "step", "followUp"].includes(S.phase) && !S.editing && !(chip && (chip.option || chip.multi))) {
         S.justAnswered = detectFromSpeech(text);
-        await announceUrgentIfNew();
+        if (!(S.phase === "greeting" && CONFIG.urgent.announceAfterGreeting)) await announceUrgentIfNew();
       }
       const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, areaTown: onAreaTown, confirm: onConfirm, editPick: onEditPick };
       await handlers[S.phase](text, chip, guards);
@@ -1407,13 +1410,19 @@ const CONFIG = {
     } catch (e) { if (!(e instanceof Cancelled)) throw e; }
   }
 
+  // Reasons for a banner: "Broken spring, car trapped" when the tier sets reasonsSentenceCase.
+  function reasonsText(list, cfg) {
+    return cfg && cfg.reasonsSentenceCase
+      ? list.map((r, i) => (i ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join(", ")
+      : list.join(", ");
+  }
   function summaryHeading() {
     return fill(FLOW.heading);
   }
   function summaryText() {
     const lines = [];
-    if (S.urgentReasons.length) lines.push(CONFIG.urgent.smsBanner ? fill(CONFIG.urgent.smsBanner, { reasons: S.urgentReasons.join(", ") }) : CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
-    else if (S.priorityReasons.length) lines.push(fill(CONFIG.priorityTier.smsBanner, { reasons: S.priorityReasons.join(", ") }), "");
+    if (S.urgentReasons.length) lines.push(CONFIG.urgent.smsBanner ? fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }) : CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
+    else if (S.priorityReasons.length) lines.push(fill(CONFIG.priorityTier.smsBanner, { reasons: reasonsText(S.priorityReasons, CONFIG.priorityTier) }), "");
     lines.push(summaryHeading());
     summaryRows().forEach(({ label, value }) => lines.push(label + ": " + value));
     lines.push("", fill(CONFIG.summary.footer));
@@ -1461,11 +1470,11 @@ const CONFIG = {
     body.className = "sms " + (t === "urgent" ? "sms-urgent" : t === "priority" ? "sms-priority" : FLOW.banner ? "sms-storm" : "sms-plain");
     let html = "";
     if (t === "urgent" && CONFIG.urgent.smsBanner) {
-      html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.urgent.smsBanner, { reasons: S.urgentReasons.join(", ") }))}</div>`;
+      html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }))}</div>`;
     } else if (t === "urgent") {
       html += `<div class="sms-banner urgent">${escapeHtml(CONFIG.urgent.label)}</div><div class="sms-reasons">${escapeHtml(S.urgentReasons.join(" · "))}</div>`;
     } else if (t === "priority") {
-      html += `<div class="sms-banner priority">${escapeHtml(fill(CONFIG.priorityTier.smsBanner, { reasons: S.priorityReasons.join(", ") }))}</div>`;
+      html += `<div class="sms-banner priority">${escapeHtml(fill(CONFIG.priorityTier.smsBanner, { reasons: reasonsText(S.priorityReasons, CONFIG.priorityTier) }))}</div>`;
     } else if (FLOW.banner) {
       html += `<div class="sms-banner storm">${escapeHtml(FLOW.banner)}</div>`;
     }

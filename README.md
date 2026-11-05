@@ -11,6 +11,7 @@ client can't see another's), and every page is marked `noindex` so search engine
 | --- | --- |
 | CLC Tree Services | https://warder-demos.pages.dev/demos/ai-receptionist/clc-tree-services/ |
 | NZ Systems | https://warder-demos.pages.dev/demos/ai-receptionist/nz-systems/ |
+| Pete's Garage Door Repair | https://warder-demos.pages.dev/demos/ai-receptionist/petes-garage-door/ |
 
 ## Layout
 
@@ -20,6 +21,7 @@ demos/
   ai-receptionist/                 One folder per kind of demo
     clc-tree-services/index.html   One folder per client (PRESENTING.md alongside: walkthrough script)
     nz-systems/index.html
+    petes-garage-door/index.html
 scripts/
   build-worker.js                  Bundles every page into dist/_worker.js for Cloudflare Pages
   serve.mjs                        Serves that bundle locally, compressed like Cloudflare
@@ -28,6 +30,7 @@ tests/
   receptionist.test.js             Scenarios, layout and randomized stress test
   buttons.test.js                  Taps every button in both scenarios on the deploy bundle
   nz-systems.test.js               NZ Systems: priority rule, gas override, scenarios, stress, a11y
+  petes-garage-door.test.js        Pete's: URGENT rule, no-DIY safety rule, scenarios, stress, a11y
   quality.test.js                  Accessibility, keyboard, voice in/out, no network requests
   performance.test.js              Load, input latency, frame rate and memory on a throttled CPU
 ```
@@ -38,6 +41,7 @@ tests/
 | --- | --- |
 | [CLC Tree Services](demos/ai-receptionist/clc-tree-services/index.html) | Ava, an AI receptionist, answers the main line when the team can't. Two scenarios: a Sunday-morning storm emergency (flagged URGENT for injuries or power lines) and a routine free-estimate request. Texts the crew a summary. Optional voice in and out. |
 | [NZ Systems](demos/ai-receptionist/nz-systems/index.html) | Appliance repair, open weekdays 9 to 5. Ava answers when the shop is closed: a Saturday fridge failure flagged PRIORITY (amber), a routine Wednesday washer call, and a gas-smell safety rule that ends the call with URGENT. |
+| [Pete's Garage Door Repair](demos/ai-receptionist/petes-garage-door/index.html) | Ava answers while Pete's on another job: a broken spring with a car trapped (URGENT, red) and a routine noisy door. Never gives DIY repair advice. |
 
 ## Making a new receptionist demo
 
@@ -45,7 +49,8 @@ tests/
    uses the identical engine below `CONFIG`; only `CONFIG` and the page title differ. Optional
    `CONFIG` features: `priorityTier` (an amber middle flag), `safetyOverride` (a phrase that ends
    the call with a safety instruction and an URGENT flag), `captureFromGreeting` and `editMatch`
-   on questions, `intro.where` / `intro.footer`, and `endScreen.title`.
+   on questions, `intro.where` / `intro.footer`, `endScreen.title`, and on `urgent`:
+   `smsBanner`, `reasonsSentenceCase`, `announceAfterGreeting`.
 2. Edit the `CONFIG` object at the top of the script: business details, the receptionist's
    name (`receptionist.name`, used everywhere), colours, the demo scenarios (greeting, day and
    time, one-tap sample answers), the intake flows (questions, summary fields, closing lines),

@@ -5,13 +5,14 @@
   "scripts": {
     "build": "node scripts/build-worker.js",
     "serve": "node scripts/build-worker.js && node scripts/serve.mjs",
-    "test": "node scripts/build-worker.js && node tests/receptionist.test.js 300 && node tests/buttons.test.js && node tests/quality.test.js && node tests/nz-systems.test.js && node tests/performance.test.js",
+    "test": "node scripts/build-worker.js && node tests/receptionist.test.js 300 && node tests/buttons.test.js && node tests/quality.test.js && node tests/nz-systems.test.js && node tests/petes-garage-door.test.js && node tests/performance.test.js",
     "test:stress": "node tests/receptionist.test.js 1000",
     "test:buttons": "node scripts/build-worker.js && node tests/buttons.test.js",
     "test:quality": "node tests/quality.test.js",
     "test:perf": "node scripts/build-worker.js && node tests/performance.test.js",
     "deploy": "scripts/deploy-cloudflare.sh",
-    "test:nz": "node scripts/build-worker.js && node tests/nz-systems.test.js"
+    "test:nz": "node scripts/build-worker.js && node tests/nz-systems.test.js",
+    "test:petes": "node scripts/build-worker.js && node tests/petes-garage-door.test.js"
   },
   "devDependencies": {
     "axe-core": "4.10.2",

@@ -25,6 +25,8 @@ jobs:
         run: node tests/quality.test.js
       - name: NZ Systems demo
         run: node tests/nz-systems.test.js
+      - name: Pete's Garage Door Repair demo
+        run: node tests/petes-garage-door.test.js
       - name: Performance budgets (informational; shared runners vary in speed)
         run: node tests/performance.test.js
         continue-on-error: true
