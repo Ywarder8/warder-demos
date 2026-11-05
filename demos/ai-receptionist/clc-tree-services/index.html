@@ -88,6 +88,11 @@
   .call-btn:active { transform: scale(.97); }
   .call-btn svg { width: 20px; height: 20px; }
   .fineprint { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .when { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .when-label { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .seg { display: inline-flex; background: var(--char-800); border: 1px solid var(--char-700); border-radius: 999px; padding: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+  .seg button[aria-checked="true"] { background: var(--brand-700); color: var(--text); }
 
   /* ---------- Call header ---------- */
   .call-head {
@@ -254,6 +259,7 @@
     border-radius: 6px; padding: 2px 7px; margin-bottom: 6px; font-size: 13px;
   }
   .sms b { font-weight: 650; }
+  .nowrap { white-space: nowrap; }
   .delivered { align-self: flex-end; color: #8a8e95; font-size: 11.5px; margin-right: 4px; }
   .compose-bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px 14px; }
   .compose-bar span { flex: 1; border: 1px solid #d0d0d6; border-radius: 999px; padding: 7px 12px; color: #9a9ea5; font-size: 13.5px; background: #fff; }
@@ -283,11 +289,18 @@
       <p class="where" id="introWhere"></p>
     </div>
     <div class="scenario" id="introScenario"></div>
+    <div class="when" role="radiogroup" aria-label="When are you calling?">
+      <span class="when-label">Calling during</span>
+      <div class="seg">
+        <button type="button" role="radio" data-hours="open" id="whenOpen">Office hours</button>
+        <button type="button" role="radio" data-hours="closed" id="whenClosed">After hours</button>
+      </div>
+    </div>
     <button class="call-btn" id="callBtn">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
       <span id="callBtnLabel"></span>
     </button>
-    <p class="fineprint">Demo only. Nothing you type leaves your browser.</p>
+    <p class="fineprint">Demo only. Nothing is saved, and typed answers never leave your browser.</p>
   </section>
 
   <!-- Call -->
@@ -426,6 +439,7 @@ const CONFIG = {
       label: "Damage",
       type: "multi",
       prompt: "Did it hit a house, a car, or power lines?",
+      preselectFromSpeech: true, // things the caller already mentioned start ticked (they can untick)
       hint: "Pick all that apply, then tap Continue.",
       retry: "Sorry, did it hit a house, a car, or power lines? Or none of those?",
       ack: "Thanks.",
@@ -469,6 +483,7 @@ const CONFIG = {
       key: "address",
       label: "Address",
       type: "text",
+      areaCheck: true,
       prompt: "Thanks, {first}. What's the address where the tree is?",
       retry: "Sorry, what's the address where the tree is?",
       placeholder: "Street address…",
@@ -481,7 +496,40 @@ const CONFIG = {
       retry: "Sorry, I didn't catch a full 10-digit number. What's the best callback number?",
       placeholder: "e.g. 519 555 0199",
     },
+    {
+      key: "backup",
+      label: "Backup contact",
+      type: "text",
+      optional: true,                       // caller can skip it
+      prompt: "Is there anyone else the crew should call if they can't reach you?",
+      retry: "Sorry, who else should the crew call? Or just say no.",
+      placeholder: "Name and number, or no…",
+      skipChip: "No, just me",
+      skipValue: "None",
+      skip: /^(no|nope|nah|none|n\/?a|nobody|no one|just me|that'?s (it|fine|all)|no thanks?)\b/i,
+    },
   ],
+
+  // Opening hours decide which greeting Wren uses. Placeholder hours: confirm with the client.
+  // Days: 0 = Sunday … 6 = Saturday, [open hour, close hour] in 24h local time.
+  hours: {
+    timeZone: "America/Toronto",
+    weekly: { 1: [7, 18], 2: [7, 18], 3: [7, 18], 4: [7, 18], 5: [7, 18], 6: [8, 14] },
+    afterHoursGreeting: "Thanks for calling CLC Tree Services, this is Wren. The office is closed right now, but I can take your details and get them to the crew. How can I help?",
+    afterHoursTag: "After hours",
+  },
+
+  // Wren never turns anyone away; she flags addresses the crew should double-check.
+  serviceArea: {
+    places: ["London", "St. Thomas", "St Thomas", "Strathroy", "Komoka", "Kilworth", "Lambeth", "Dorchester",
+             "Ilderton", "Arva", "Thorndale", "Delaware", "Mount Brydges", "Belmont", "Ingersoll", "Byron", "Hyde Park"],
+    postalPrefixes: ["N5V", "N5W", "N5X", "N5Y", "N5Z", "N6A", "N6B", "N6C", "N6E", "N6G", "N6H", "N6J", "N6K", "N6L", "N6M", "N6N", "N6P"],
+    askTown: "And what town or city is that in?",
+    townChips: ["London", "St. Thomas", "Strathroy"],
+    outside: "That may be outside our usual service area, but I'll pass it along and the crew will confirm.",
+    insideLabel: "{town} (in service area)",
+    outsideLabel: "CHECK: {town} may be outside the usual area",
+  },
 
   // Mark the call URGENT if any rule matches.
   urgent: {
@@ -541,7 +589,7 @@ const CONFIG = {
     yesLabel: "Yes, that's right",
     noLabel: "Something needs fixing",
     yes: /\b(yes|yeah|yep|yup|correct|right|good|perfect|great|that'?s it|all set|looks good|sounds good)\b/i,
-    no: /\b(no|nope|wrong|fix|change|incorrect|not right|not quite|actually|mistake|typo)\b/i,
+    no: /\b(no|nope|wrong|fix\w*|chang\w*|incorrect|not right|not quite|actually|mistakes?|typos?|edit|update)\b/i,
     editAsk: "Sure. What needs changing?",
     editPrompt: "Okay, what should the {label} be?",
   },
@@ -556,6 +604,7 @@ const CONFIG = {
     title: "Text to {business}",
     subtitle: "From {receptionist} · {role}",
     heading: "New call intake",
+    afterHoursHeading: "New call intake (after hours)",
     fields: [
       { label: "Caller", key: "name" },
       { label: "Number", key: "phone" },
@@ -563,6 +612,8 @@ const CONFIG = {
       { label: "What happened", key: "incident" },
       { label: "Damage", key: "damage" },
       { label: "Injuries", key: "injuries" },
+      { label: "Area", key: "area" },
+      { label: "Backup", key: "backup" },
     ],
     footer: "Taken by {receptionist} ({role})",
   },
@@ -588,6 +639,7 @@ const CONFIG = {
   };
   const STEPS = CONFIG.steps;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const FAST = /[?&]fast\b/.test(location.search);   // ?fast skips typing delays (used by the test suite)
 
   class Cancelled extends Error {}
   let runId = 0;
@@ -613,9 +665,10 @@ const CONFIG = {
       .replace(/,\s*\./g, ".").replace(/\s+([.,])/g, "$1");   // tidy when {first} is empty
   }
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const sleep = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? Math.min(ms, 150) : ms));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, FAST ? 0 : reduceMotion ? Math.min(ms, 150) : ms));
   async function wait(ms) { const id = runId; await sleep(ms); if (id !== runId) throw new Cancelled(); }
   const capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const clip = (s, n = 300) => (s.length > n ? s.slice(0, n) + "…" : s);
   const mmss = (ms) => { const t = Math.floor(ms / 1000); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
   const stripHtml = (s) => String(s).replace(/<[^>]+>/g, "");
 
@@ -763,7 +816,7 @@ const CONFIG = {
       renderChips(step.options.map((o) => ({ label: o.label, option: o })));
     } else if (step.type === "multi") {
       clearChips();
-      const hinted = S.hints[step.key] || new Set();
+      const hinted = new Set([...(S.hints[step.key] || []), ...(S.soft[step.key] || [])]);
       S.multiSel = new Set(step.options.filter((o) => hinted.has(optValue(o))));
       const go = document.createElement("button");
       go.type = "button"; go.className = "chip primary"; go.textContent = "Continue"; go.disabled = S.multiSel.size === 0;
@@ -789,6 +842,8 @@ const CONFIG = {
       });
       els.chips.appendChild(go);
       if (step.hint) { const h = document.createElement("p"); h.className = "chip-hint"; h.textContent = step.hint; els.chips.appendChild(h); }
+    } else if (step.optional && step.skipChip) {
+      renderChips([{ label: step.skipChip, skip: true }]);
     } else clearChips();
   }
 
@@ -810,7 +865,7 @@ const CONFIG = {
       const o = chip && chip.option ? chip.option : bestOption(step.options, text);
       if (o && o.other && o.followUp) return { followUp: o };
       if (o) return { ok: true, raw: optValue(o), display: optDisplay(o) };
-      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: "Other", display: capFirst(text) };
+      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: "Other", display: clip(capFirst(text)) };
       return { ok: false };
     }
     if (step.type === "multi") {
@@ -820,7 +875,7 @@ const CONFIG = {
       }
       if (picked.some((o) => !o.none)) picked = picked.filter((o) => !o.none);
       if (picked.length) return { ok: true, raw: picked.map(optValue), display: picked.map(optDisplay).join(", ") };
-      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: ["Other"], display: capFirst(text) };
+      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: ["Other"], display: clip(capFirst(text)) };
       return { ok: false };
     }
     if (step.type === "phone") {
@@ -832,10 +887,16 @@ const CONFIG = {
       return { ok: true, raw: f, display: f };
     }
     // text
+    if (step.optional && ((chip && chip.skip) || (step.skip && step.skip.test(text)))) {
+      return { ok: true, raw: step.skipValue || "None", display: step.skipValue || "None" };
+    }
     if (guarded || isQuestion) return { ok: false };
     let v = text.replace(step.clean || /^$/, "").replace(/[.!]+$/, "").trim();
     if (v.length < 2) return { ok: false };
     if (step.key === "name" && v === v.toLowerCase()) v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+    v = capFirst(v);
+    v = v.replace(/(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g, "($1) $2-$3");
+    if (v.length > 300) v = v.slice(0, 300) + "…";
     return { ok: true, raw: v, display: v };
   }
 
@@ -866,6 +927,12 @@ const CONFIG = {
       } else if (!S.mentioned.includes(d.reason)) S.mentioned.push(d.reason);
       if (d.preselect) (S.hints[d.preselect.key] = S.hints[d.preselect.key] || new Set()).add(d.preselect.value);
     });
+    // Soft hints: tick options the caller already mentioned (chips only; never auto-added to typed answers).
+    STEPS.filter((s) => s.type === "multi" && s.preselectFromSpeech && S.raw[s.key] == null).forEach((s) => {
+      s.options.filter((o) => !o.none && optMatches(o, text)).forEach((o) => {
+        (S.soft[s.key] = S.soft[s.key] || new Set()).add(optValue(o));
+      });
+    });
     return answered;
   }
   async function announceUrgentIfNew() {
@@ -885,7 +952,46 @@ const CONFIG = {
 
   /* ---------- summary ---------- */
   function summaryRows() {
-    return CONFIG.summary.fields.map((f) => ({ label: f.label, value: S.answers[f.key] || "—" }));
+    return CONFIG.summary.fields
+      .filter((f) => f.key !== "area" || S.answers.area)
+      .map((f) => ({ label: f.label, value: S.answers[f.key] || "—" }));
+  }
+
+  /* ---------- office hours ---------- */
+  function isOpenNow() {
+    const H = CONFIG.hours; if (!H) return true;
+    try {
+      const parts = new Intl.DateTimeFormat("en-CA", { timeZone: H.timeZone, weekday: "short", hour: "numeric", hourCycle: "h23" }).formatToParts(new Date());
+      const day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((p) => p.type === "weekday").value);
+      const hour = Number(parts.find((p) => p.type === "hour").value);
+      const span = H.weekly[day];
+      return !!span && hour >= span[0] && hour < span[1];
+    } catch (e) { return true; }
+  }
+  let afterHours = !isOpenNow();
+  function setHours(closed) {
+    afterHours = closed;
+    $("whenOpen").setAttribute("aria-checked", closed ? "false" : "true");
+    $("whenClosed").setAttribute("aria-checked", closed ? "true" : "false");
+  }
+
+  /* ---------- service area ---------- */
+  const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  function checkArea(addr) {
+    const A = CONFIG.serviceArea; if (!A) return { status: "in", town: "" };
+    const pc = addr.match(/\b([A-Z]\d[A-Z])\s?\d[A-Z]\d\b/i);
+    if (pc) {
+      const fsa = pc[1].toUpperCase();
+      return A.postalPrefixes.some((p) => fsa.startsWith(p.toUpperCase())) ? { status: "in", town: fsa } : { status: "out", town: "postal code " + fsa };
+    }
+    const place = A.places.find((p) => new RegExp("\\b" + reEsc(p) + "\\b", "i").test(addr));
+    if (place) return { status: "in", town: place };
+    const parts = addr.split(",").map((x) => x.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const town = parts.slice(1).map((x) => x.replace(/\b(ON|Ont\.?|Ontario|Canada)\b\.?/gi, "").trim()).filter((x) => x && !/^\d/.test(x))[0];
+      if (town) return { status: "out", town };
+    }
+    return { status: "unknown", town: "" };
   }
 
   /* ---------- flow ---------- */
@@ -899,7 +1005,22 @@ const CONFIG = {
   async function accept(step, r) {
     S.raw[step.key] = r.raw;
     S.answers[step.key] = r.display;
+    let areaOutside = false;
+    if (step.areaCheck && CONFIG.serviceArea) {
+      const a = checkArea(r.display);
+      if (a.status === "unknown" && !r.townAsked) {
+        S.phase = "areaTown"; S.pendingStep = step;
+        await say(fill(CONFIG.serviceArea.askTown));
+        renderChips(CONFIG.serviceArea.townChips.map((label) => ({ label })));
+        setComposer(true, "Town or city…");
+        return;
+      }
+      const t = a.town || "Unknown";
+      S.answers.area = fill(a.status === "in" ? CONFIG.serviceArea.insideLabel : CONFIG.serviceArea.outsideLabel, { town: t });
+      areaOutside = a.status !== "in";
+    }
     const newly = refreshUrgent();
+    if (areaOutside) await say(fill(CONFIG.serviceArea.outside));
     if (S.editing) {
       S.editing = null;
       if (newly) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
@@ -955,7 +1076,21 @@ const CONFIG = {
       return;
     }
     S.phase = "step";
-    await accept(step, { ok: true, raw: "Other", display: capFirst(text) });
+    await accept(step, { ok: true, raw: "Other", display: clip(capFirst(text)) });
+  }
+
+  async function onAreaTown(text, chip, guards) {
+    const step = S.pendingStep;
+    if (guards.length || text.length < 2 || /\?\s*$/.test(text)) {
+      await say(fill(CONFIG.serviceArea.askTown));
+      renderChips(CONFIG.serviceArea.townChips.map((label) => ({ label })));
+      setComposer(true, "Town or city…");
+      return;
+    }
+    S.phase = "step";
+    const town = clip(capFirst(text.replace(/^(it'?s|it is|in)\s+/i, "").replace(/[.!]+$/, "")), 60);
+    const addr = S.answers[step.key] + ", " + town;
+    await accept(step, { ok: true, raw: addr, display: addr, townAsked: true });
   }
 
   async function goConfirm() {
@@ -987,11 +1122,16 @@ const CONFIG = {
   function findStepMention(text) {
     const t = text.toLowerCase();
     const syn = {
-      name: /\bname\b/, phone: /\b(number|phone|callback|cell)\b/, address: /\b(address|street|location)\b/,
+      backup: /\b(backup|back-up|someone else|other contact|emergency contact)\b/,
+      name: /\bname\b/, phone: /\b(number|phone|callback|cell)\b/, address: /\b(address|street|location|town|city|area)\b/,
       incident: /\b(happened|what happened|incident|tree|limb)\b/, damage: /\b(damage|hit|house|car|power|lines?)\b/,
       injuries: /\b(hurt|injur\w*)\b/,
     };
-    return STEPS.find((s) => t.includes(s.label.toLowerCase()) || (syn[s.key] && syn[s.key].test(t)));
+    // Most specific first, so "backup number" doesn't land on the callback number.
+    const order = ["backup", "injuries", "damage", "incident", "address", "phone", "name"];
+    const byLabel = STEPS.find((s) => t.includes(s.label.toLowerCase()));
+    const bySyn = order.map((k) => STEPS.find((s) => s.key === k)).find((s) => s && syn[s.key] && syn[s.key].test(t));
+    return bySyn || byLabel;
   }
 
   async function onConfirm(text, chip, guards) {
@@ -1056,7 +1196,7 @@ const CONFIG = {
         S.justAnswered = detectFromSpeech(text);
         await announceUrgentIfNew();
       }
-      const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, confirm: onConfirm, editPick: onEditPick };
+      const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, areaTown: onAreaTown, confirm: onConfirm, editPick: onEditPick };
       await handlers[S.phase](text, chip, guards);
     } catch (e) {
       if (!(e instanceof Cancelled)) throw e;
@@ -1086,20 +1226,24 @@ const CONFIG = {
       await wait(CONFIG.timing.ringMs);
       if (id !== runId) return;
       S.start = Date.now(); els.liveDot.classList.remove("off"); startTimer();
-      sys("Connected");
+      sys(afterHours && CONFIG.hours ? "Connected · " + CONFIG.hours.afterHoursTag : "Connected");
       S.phase = "greeting";
       S.busy = true;
-      await say(fill(CONFIG.greeting));
+      S.afterHours = afterHours;
+      await say(fill(afterHours && CONFIG.hours ? CONFIG.hours.afterHoursGreeting : CONFIG.greeting));
       S.busy = false;
       renderChips(CONFIG.greetingSuggestions.map((label) => ({ label })));
       setComposer(true, "Tell Wren what's going on…");
     } catch (e) { if (!(e instanceof Cancelled)) throw e; }
   }
 
+  function summaryHeading() {
+    return fill(S.afterHours && CONFIG.summary.afterHoursHeading ? CONFIG.summary.afterHoursHeading : CONFIG.summary.heading);
+  }
   function summaryText() {
     const lines = [];
     if (S.urgentReasons.length) lines.push(CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
-    lines.push(fill(CONFIG.summary.heading));
+    lines.push(summaryHeading());
     summaryRows().forEach(({ label, value }) => lines.push(label + ": " + value));
     lines.push("", fill(CONFIG.summary.footer));
     return lines.join("\n");
@@ -1107,7 +1251,11 @@ const CONFIG = {
   async function copySummary() {
     const btn = $("copyBtn"), text = summaryText();
     let ok = false;
-    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+    try {
+      // Some browsers leave the clipboard promise pending (e.g. pages opened from disk); don't hang on it.
+      await Promise.race([navigator.clipboard.writeText(text), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 1200))]);
+      ok = true;
+    } catch (e) {
       const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
       ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
       try { ok = document.execCommand("copy"); } catch (e2) {}
@@ -1142,8 +1290,9 @@ const CONFIG = {
     if (S.urgentReasons.length) {
       html += `<span class="urgent-tag">${escapeHtml(CONFIG.urgent.label)}</span>\n${escapeHtml(S.urgentReasons.join(" · "))}\n\n`;
     }
-    html += `<b>${escapeHtml(fill(CONFIG.summary.heading))}</b>\n`;
-    html += summaryRows().map(({ label, value }) => `${escapeHtml(label)}: ${escapeHtml(value)}`).join("\n");
+    html += `<b>${escapeHtml(summaryHeading())}</b>\n`;
+    const keepPhone = (h) => h.replace(/\(\d{3}\) \d{3}-\d{4}/g, (m) => `<span class="nowrap">${m}</span>`);
+    html += summaryRows().map(({ label, value }) => `${escapeHtml(label)}: ${keepPhone(escapeHtml(value))}`).join("\n");
     html += `\n\n${escapeHtml(fill(CONFIG.summary.footer))}`;
     body.innerHTML = html;
     els.end.scrollTop = 0;
@@ -1153,7 +1302,7 @@ const CONFIG = {
   function reset() {
     S = { phase: "intro", idx: 0, answers: {}, raw: {}, urgentReasons: [], urgentAnnounced: false,
           busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now(),
-          mentioned: [], justAnswered: [], hints: {}, log: [] };
+          mentioned: [], justAnswered: [], hints: {}, soft: {}, log: [], pendingStep: null, afterHours: false };
     els.urgentPill.hidden = true;
   }
 
@@ -1171,6 +1320,13 @@ const CONFIG = {
   $("urgentPill").textContent = fill(CONFIG.urgent.banner || CONFIG.urgent.label);
   $("endLede").textContent = fill(CONFIG.endScreen.lede);
   $("endNote").textContent = fill(CONFIG.endScreen.note);
+
+  if (CONFIG.hours) {
+    setHours(afterHours);
+    $("whenOpen").addEventListener("click", () => setHours(false));
+    $("whenClosed").addEventListener("click", () => setHours(true));
+  } else document.querySelector(".when").hidden = true;
+  if (FAST) window.__wren = { state: () => S, config: CONFIG, checkArea };
 
   $("callBtn").addEventListener("click", startCall);
   $("restartTop").addEventListener("click", startCall);
