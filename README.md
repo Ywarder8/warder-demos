@@ -50,7 +50,8 @@ tests/
    `CONFIG` features: `priorityTier` (an amber middle flag), `safetyOverride` (a phrase that ends
    the call with a safety instruction and an URGENT flag), `captureFromGreeting` and `editMatch`
    on questions, `intro.where` / `intro.footer`, `endScreen.title`, and on `urgent`:
-   `smsBanner`, `reasonsSentenceCase`, `announceAfterGreeting`.
+   `smsBanner`, `reasonsSentenceCase`, `announceAfterGreeting`; `questionsDontEscalate` /
+   `questionFallback` (questions get answered but never set priority); `unless` on guardrails.
 2. Edit the `CONFIG` object at the top of the script: business details, the receptionist's
    name (`receptionist.name`, used everywhere), colours, the demo scenarios (greeting, day and
    time, one-tap sample answers), the intake flows (questions, summary fields, closing lines),

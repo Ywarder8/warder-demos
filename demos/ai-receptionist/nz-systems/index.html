@@ -935,7 +935,36 @@ const CONFIG = {
   }
 
   /* ---------- parsing ---------- */
-  function matchGuardrails(text) { return CONFIG.guardrails.filter((g) => g.match.test(text)); }
+  function matchGuardrails(text) { return CONFIG.guardrails.filter((g) => g.match.test(text) && !(g.unless && g.unless.test(text))); }
+
+  // Opt-in (CONFIG.questionsDontEscalate): split what the caller said into questions and
+  // statements. Questions get answered; only the statements can answer intake questions or
+  // change the call's priority. "How much does a new spring cost?" is all question, so the
+  // word "spring" in it can't flag anything. Requests phrased as questions ("Can you inspect
+  // the springs?") count as statements.
+  const Q_LEAD = /^(?:(?:hi|hey|hello|yes|yeah|yep|no|nope|ok|okay|so|um|uh|well|and|also|but|oh|sorry|quick question|one more thing|just wondering)\b[,\s]*)+/i;
+  const Q_START = /^(how|what|when|where|why|who|which|can|could|do|does|did|is|are|was|were|will|would|should|shall|may|might|have|has|any)(?![\w'’])/i;
+  const Q_WORD = /\b(how|what|when|where|why|who|which|can|could|do|does|did|is|are|will|would|should|much|long)\b/i;
+  const Q_REQUEST = /^(can|could|would|will) (you|someone|somebody|pete|he|they)( please)? (inspect|check|look|fix|repair|replace|service|tune|come|help|install|adjust|swap|change)\b/i;
+  function splitQuestion(text) {
+    const statements = [];
+    let hadQuestion = false;
+    for (const sentence of text.split(/(?<=[.?!])\s+/)) {
+      const endsQ = /\?\s*$/.test(sentence);
+      const clauses = sentence.split(/,\s*/);
+      let inQuestion = false;
+      clauses.forEach((clause, i) => {
+        const core = clause.replace(Q_LEAD, "").trim();
+        if (!core) { if (!inQuestion && clause.trim()) statements.push(clause.trim()); return; }   // "no", "yes": an answer
+        const asks = !Q_REQUEST.test(core) && (Q_START.test(core) || /\b(wondering|want(ed)? to know|curious)\b/i.test(core)
+          || (endsQ && i === clauses.length - 1 && Q_WORD.test(core) && !statements.length && clauses.length === 1));
+        if (asks) inQuestion = true;
+        // keep the caller's own words ("yes, my son's hand got caught"), not the stripped core
+        if (inQuestion) hadQuestion = true; else statements.push(clause.trim().replace(/\?\s*$/, ""));
+      });
+    }
+    return { statement: statements.join(", ").trim(), hadQuestion };
+  }
   const optMatches = (o, text) => !!(o.match && o.match.test(text) && !(o.unless && o.unless.test(text)));
   function bestOption(options, text) {
     const hits = options.filter((o) => optMatches(o, text));
@@ -1349,16 +1378,24 @@ const CONFIG = {
     bubble("caller", text);
     try {
       if (safetyHit(text)) return await runSafetyOverride(text);
-      const guards = matchGuardrails(text);
+      let guards = matchGuardrails(text);
+      // Questions are answered first; only statement text moves the intake or the priority.
+      const intake = ["greeting", "step", "followUp"].includes(S.phase);
+      let said = text;
+      if (CONFIG.questionsDontEscalate && intake && !chip) {
+        const q = splitQuestion(text);
+        said = q.statement;
+        if (q.hadQuestion && !guards.length && !said && CONFIG.questionFallback) guards = [{ id: "question", reply: CONFIG.questionFallback }];
+      }
       for (const g of guards) await say(fill(g.reply));
       S.justAnswered = [];
-      if (S.phase === "greeting") setFlow(routeFlow(text));
-      if (["greeting", "step", "followUp"].includes(S.phase) && !S.editing && !(chip && (chip.option || chip.multi))) {
-        S.justAnswered = detectFromSpeech(text);
+      if (S.phase === "greeting") setFlow(routeFlow(said || text));
+      if (intake && !S.editing && !(chip && (chip.option || chip.multi)) && said) {
+        S.justAnswered = detectFromSpeech(said);
         if (!(S.phase === "greeting" && CONFIG.urgent.announceAfterGreeting)) await announceUrgentIfNew();
       }
       const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, areaTown: onAreaTown, confirm: onConfirm, editPick: onEditPick };
-      await handlers[S.phase](text, chip, guards);
+      await handlers[S.phase](intake ? said : text, chip, guards);
     } catch (e) {
       if (!(e instanceof Cancelled)) throw e;
     } finally {

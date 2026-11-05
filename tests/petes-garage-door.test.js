@@ -123,6 +123,63 @@ async function confirmAndEnd(page) { await chip(page, "Yes, that's right"); awai
     st = await W(page);
     ok((st.urgentReasons.length > 0) === expect, `"${first}" → ${expect ? "URGENT" : "routine"} (got ${st.answers.issue}, ${st.urgentReasons.join(",") || "routine"})`);
   }
+  /* ---------- regression: a spring or cable alone never escalates; questions never escalate ---------- */
+  console.log("Spring/cable regression");
+  const PRICE = "I can't give prices over the phone, but Pete will go over costs with you when he calls back.";
+  const mustNot = ["How much does a new spring cost?", "Do you sell springs?", "I need a spring tune-up", "Can you inspect the springs?", "How long do springs last?"];
+  const must = ["The spring snapped", "Broken spring", "The spring broke and the door came down", "Heard a loud bang from the garage and now the door won't open", "A cable snapped"];
+  for (const scenario of ["Noisy, slow door", "Broken spring, car trapped"]) {
+    for (const q of mustNot) {
+      await call(page, scenario);
+      await send(page, q); await settle(page);
+      st = await W(page);
+      const said = (await lines(page)).slice(1);
+      ok(st.urgentReasons.length === 0 && (await page.isHidden("#urgentPill")), `[${scenario}] "${q}" does NOT flag URGENT (got ${st.urgentReasons.join(",") || "routine"})`);
+      ok(!said.some((l) => /marking this call URGENT/.test(l)), `[${scenario}] "${q}" doesn't announce URGENT`);
+      ok(!said.some((l) => /arrival time/.test(l)), `[${scenario}] "${q}" isn't answered as an arrival-time question`);
+    }
+    for (const q of must) {
+      await call(page, scenario);
+      await send(page, q); await settle(page);
+      st = await W(page);
+      ok(st.urgentReasons.length > 0, `[${scenario}] "${q}" flags URGENT (issue: ${st.answers.issue})`);
+    }
+  }
+  // the price question: standard line first, then back to the intake question she was on
+  await call(page, "Noisy, slow door");
+  await send(page, "How much does a new spring cost?"); await settle(page);
+  let said = (await lines(page)).slice(1);
+  ok(said[0] === PRICE, "price question at the greeting: standard price line first");
+  ok(said[said.length - 1] === "What's happened with the door?", "...then the intake question");
+  ok((await W(page)).answers.issue == null, "...and nothing was recorded from the question");
+  // mid-intake: same question at the car question keeps priority and re-asks the car question
+  await call(page, "Noisy, slow door");
+  await send(page, "it's really noisy"); await settle(page);
+  await send(page, "How much does a new spring cost?"); await settle(page);
+  said = await lines(page);
+  st = await W(page);
+  ok(said[said.length - 2] === PRICE && said[said.length - 1] === "Is your car trapped inside the garage?", "mid-intake price question: answered, then back to the car question");
+  ok(st.urgentReasons.length === 0 && st.answers.carTrapped == null, "mid-intake question changes neither priority nor answers");
+  // a question about a broken spring is still a question; the statement in a mixed sentence still counts
+  await call(page, "Noisy, slow door");
+  await send(page, "How much does a broken spring cost to fix?"); await settle(page);
+  ok((await W(page)).urgentReasons.length === 0, "a question that mentions a broken spring doesn't escalate by itself");
+  await call(page, "Noisy, slow door");
+  await send(page, "The spring snapped, how much will that cost?"); await settle(page);
+  st = await W(page);
+  ok(st.urgentReasons.includes("Broken spring") && (await lines(page)).includes(PRICE), "statement + question: price answered, statement still escalates");
+  // asking Pete to do the work isn't DIY
+  await call(page, "Noisy, slow door");
+  await send(page, "Can you replace the spring?"); await settle(page);
+  ok(!(await lines(page)).includes(DIY_REPLY), "'Can you replace the spring?' doesn't get the DIY warning");
+  // standing behaviour
+  await call(page, "Noisy, slow door");
+  await send(page, "the door won't open"); await settle(page);
+  ok((await W(page)).urgentReasons.length === 0, "'won't open' alone stays routine");
+  await call(page, "Noisy, slow door");
+  await send(page, "my car isn't stuck, the door is just slow"); await settle(page);
+  ok((await W(page)).answers.carTrapped == null && (await W(page)).urgentReasons.length === 0, "'my car isn't stuck' is never read as trapped");
+
   // routine problem, but the car is trapped -> URGENT
   await call(page, "Noisy, slow door");
   await send(page, "the door won't open"); await send(page, "yes, the car's inside"); await settle(page);
@@ -245,8 +302,9 @@ async function confirmAndEnd(page) { await chip(page, "Yes, that's right"); awai
   /* ---------- randomized stress ---------- */
   console.log(`Stress: ${RUNS} random calls`);
   const VALID = {
-    greeting: ["my spring broke", "the cable snapped and my car is stuck", "door is noisy", "remote doesn't work", "hello", "the door won't close", "door came off the track", "I need a tune-up"],
-    issue: ["spring", "it's slow", "keypad", "off the tracks", "won't open", "something rattles"],
+    greeting: ["my spring broke", "the cable snapped and my car is stuck", "door is noisy", "remote doesn't work", "hello", "the door won't close", "door came off the track", "I need a tune-up",
+               "How much does a new spring cost?", "I need a spring tune-up", "heard a loud bang and the door dropped", "Do you sell springs?"],
+    issue: ["spring", "it's slow", "keypad", "off the tracks", "won't open", "something rattles", "the spring snapped", "how much is a spring?"],
     carTrapped: ["yes", "no", "it's stuck inside", "no, it's in the driveway"],
     injuries: ["no", "nobody", "yes", "my dog got caught"],
     name: ["Jo Park", "sam lee"], address: ["1 Oak St, London", "22 Birch Cres"],
@@ -279,7 +337,7 @@ async function confirmAndEnd(page) { await chip(page, "Yes, that's right"); awai
     const s = await W(sp);
     const text = await sms(sp);
     const banner = await sp.$$eval("#smsBody .sms-banner", (n) => n.map((x) => x.textContent));
-    const urgentIssue = ["Broken spring", "Broken cable", "Off its tracks", "Won't close"].includes(s.raw.issue);
+    const urgentIssue = ["Broken spring", "Broken cable", "Loud bang or door dropped", "Off its tracks", "Won't close"].includes(s.raw.issue);
     const expectUrgent = urgentIssue || s.raw.carTrapped === "Yes" || s.raw.injuries === "Yes";
     if (expectUrgent) urgentCalls++;
     ok((s.urgentReasons.length > 0) === expectUrgent, `run ${run}: URGENT exactly per the rule (${s.raw.issue}, car ${s.raw.carTrapped}, hurt ${s.raw.injuries})`);
