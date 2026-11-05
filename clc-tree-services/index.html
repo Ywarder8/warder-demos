@@ -108,15 +108,42 @@
   .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #5fd68f; box-shadow: 0 0 0 0 rgba(95,214,143,.6); animation: pulse 1.8s infinite; }
   .live-dot.off { background: var(--muted); animation: none; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(95,214,143,.55);} 70% { box-shadow: 0 0 0 7px rgba(95,214,143,0);} 100% { box-shadow: 0 0 0 0 rgba(95,214,143,0);} }
-  .urgent-pill {
-    flex: none; font-size: 11.5px; font-weight: 800; letter-spacing: .8px;
-    color: #fff; background: var(--urgent); border-radius: 999px; padding: 4px 9px;
+  .who .sub span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .urgent-bar {
+    background: var(--urgent); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .3px;
+    padding: 7px 16px; text-align: center; animation: rise .22s ease-out;
   }
   .icon-btn {
     flex: none; border: 1px solid rgba(255,255,255,.14); background: transparent;
     border-radius: 10px; padding: 7px 10px; font-size: 13px; color: #d8e6dd;
   }
   .icon-btn:hover { background: rgba(255,255,255,.06); }
+  .icon-btn.round { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+  .icon-btn svg { width: 19px; height: 19px; }
+  #voiceBtn .mute { display: none; }
+  #voiceBtn[aria-pressed="false"] .wave { display: none; }
+  #voiceBtn[aria-pressed="false"] .mute { display: inline; }
+  #voiceBtn[aria-pressed="false"] { color: var(--muted); }
+  .mic {
+    flex: none; width: 46px; height: 46px; border-radius: 50%;
+    border: 1px solid var(--char-600); background: var(--char-800); color: var(--brand-300);
+    display: grid; place-items: center;
+  }
+  .mic svg { width: 20px; height: 20px; }
+  .mic:disabled { opacity: .4; cursor: not-allowed; }
+  .mic.listening { background: var(--urgent); border-color: var(--urgent); color: #fff; animation: micPulse 1.4s infinite; }
+  @keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(229,72,77,.5);} 70% { box-shadow: 0 0 0 10px rgba(229,72,77,0);} 100% { box-shadow: 0 0 0 0 rgba(229,72,77,0);} }
+  .end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .ghost {
+    border: 1px solid var(--brand-500); background: transparent; color: var(--brand-300);
+    border-radius: 999px; padding: 13px 22px; font-weight: 600; font-size: 16px;
+  }
+  .ghost:hover { background: rgba(46,122,89,.15); }
+  .transcript { width: 100%; max-width: 360px; background: var(--char-800); border: 1px solid var(--char-700); border-radius: 14px; }
+  .transcript summary { cursor: pointer; padding: 12px 16px; font-size: 14px; color: var(--brand-300); }
+  .transcript > div { padding: 0 16px 14px; font-size: 13.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+  .transcript p { margin: 0; }
+  .transcript b { color: var(--brand-300); font-weight: 600; }
 
   /* ---------- Chat ---------- */
   .chat {
@@ -271,14 +298,22 @@
         <div class="name" id="headName"></div>
         <div class="sub"><span class="live-dot" id="liveDot"></span><span id="headSub"></span></div>
       </div>
-      <span class="urgent-pill" id="urgentPill" hidden>URGENT</span>
-      <button class="icon-btn" id="restartTop" aria-label="Start over">Start over</button>
+      <button class="icon-btn round" id="voiceBtn" aria-label="Wren's voice" aria-pressed="true" title="Wren's voice on/off" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6"/></svg>
+      </button>
+      <button class="icon-btn round" id="restartTop" aria-label="Start over" title="Start over">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
     </header>
+    <div class="urgent-bar" id="urgentPill" role="status" hidden></div>
     <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Call transcript"></div>
     <div class="composer">
       <div class="chips" id="chips"></div>
       <form class="input-row" id="form" autocomplete="off">
         <input id="input" type="text" aria-label="Your reply" placeholder="Type your reply…" disabled>
+        <button class="mic" id="mic" type="button" aria-label="Speak your reply" title="Speak your reply" hidden disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
         <button class="send" id="send" type="submit" aria-label="Send" disabled>
           <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
         </button>
@@ -306,7 +341,14 @@
         <div class="compose-bar"><span>Text Message</span></div>
       </div>
     </div>
-    <button class="restart" id="restartEnd">Start over</button>
+    <div class="end-actions">
+      <button class="restart" id="restartEnd">Start over</button>
+      <button class="ghost" id="copyBtn">Copy summary</button>
+    </div>
+    <details class="transcript">
+      <summary>Show call transcript</summary>
+      <div id="transcript"></div>
+    </details>
     <p class="note" id="endNote"></p>
   </section>
 </div>
@@ -405,11 +447,13 @@ const CONFIG = {
       retry: "Just to be sure, is anyone hurt? Yes or no?",
       placeholder: "Yes or no…",
       freeform: false,
+      askOnConflict: true, // "No, but my neighbour is hurt" -> ask again instead of guessing
       options: [
         { label: "Yes, someone is hurt", value: "Yes", summary: "YES, someone is hurt",
-          match: /\b(yes|yeah|yep|yup|hurt|injur\w*|bleeding|trapped|pinned|ambulance)\b/i },
-        { label: "No one is hurt", value: "No", summary: "No one hurt", priority: 2,
-          match: /\b(no|nope|nobody|no one|noone|not hurt|we'?re (ok|okay|fine|good)|everyone'?s? (is )?(ok|okay|fine|safe|good)|all good)\b/i },
+          match: /\b(yes|yeah|yep|yup|ambulance|hurt|injured|injuries|bleeding|trapped|pinned)\b/i,
+          unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t|no injur\w*)\b[^.,!?]*\b(hurt|injur\w*|bleeding|trapped|pinned)\b/i },
+        { label: "No one is hurt", value: "No", summary: "No one hurt",
+          match: /\b(no|nope|nobody|no one|noone|not hurt|we'?re (ok|okay|fine|good|safe)|everyone'?s? (is )?(ok|okay|fine|safe|good)|all good)\b/i },
       ],
     },
     {
@@ -442,11 +486,37 @@ const CONFIG = {
   // Mark the call URGENT if any rule matches.
   urgent: {
     label: "URGENT",
+    banner: "URGENT · Crew being notified",
     rules: [
       { key: "damage", includes: "Power lines", reason: "Power lines involved" },
       { key: "injuries", equals: "Yes", reason: "Someone is hurt" },
     ],
     callerMessage: "I'm marking this call <b>URGENT</b>, and the crew will be notified right away. Please stay clear of the tree and any downed lines.",
+    // Scanned on everything the caller says during the intake, so "the power lines are down"
+    // or "my husband is hurt" in the first sentence flags the call immediately.
+    // `answers` pre-fills a question so Wren doesn't ask something the caller already told her.
+    detect: [
+      { reason: "Power lines involved",
+        match: /\b(power|hydro|electric(al)?)\s*(lines?|wires?|cables?|poles?)\b|\b(downed|live|sparking)\s+(lines?|wires?)\b|\b(wires?|lines?)\s+(are\s+|is\s+)?(down|sparking)\b/i,
+        unless: /\b(no|not|didn'?t|did not|missed|nowhere near|away from|clear of)\b[^.,!?]*\b(power|hydro|lines?|wires?)\b/i,
+        preselect: { key: "damage", value: "Power lines" } },
+      { reason: "Someone is hurt",
+        match: /\b(is|are|was|were|got|been|'s|'re)\s+(badly\s+|really\s+|very\s+)?(hurt|injured|bleeding|trapped|pinned)\b|\b(need|call(ed)?)\s+an?\s+ambulance\b/i,
+        unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t)\b[^.,!?]*\b(hurt|injured|bleeding|trapped|pinned)\b/i,
+        answers: { key: "injuries", value: "Yes" } },
+    ],
+  },
+
+  // Wren reads her lines aloud (browser text-to-speech), and callers can talk back where the
+  // browser supports speech recognition (Chrome, Edge, Safari). Nothing is sent to a server
+  // by this page; some browsers use their own cloud service for speech recognition.
+  voice: {
+    speak: true,              // default for the speaker toggle
+    listen: true,             // show the mic button when supported
+    lang: "en-CA",
+    rate: 1.03,
+    pitch: 1.0,
+    preferredVoices: ["Google UK English Female", "Samantha", "Microsoft Aria", "Microsoft Jenny", "Karen", "Moira", "Female"],
   },
 
   // Things callers ask mid-intake, and how Wren answers. Checked on every reply.
@@ -514,6 +584,7 @@ const CONFIG = {
     intro: $("intro"), call: $("call"), end: $("end"),
     chat: $("chat"), chips: $("chips"), form: $("form"), input: $("input"), send: $("send"),
     headSub: $("headSub"), liveDot: $("liveDot"), urgentPill: $("urgentPill"),
+    mic: $("mic"), voiceBtn: $("voiceBtn"),
   };
   const STEPS = CONFIG.steps;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -546,6 +617,88 @@ const CONFIG = {
   async function wait(ms) { const id = runId; await sleep(ms); if (id !== runId) throw new Cancelled(); }
   const capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const mmss = (ms) => { const t = Math.floor(ms / 1000); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
+  const stripHtml = (s) => String(s).replace(/<[^>]+>/g, "");
+
+  /* ---------- voice (Web Speech API, built into the browser) ---------- */
+  const V = CONFIG.voice || {};
+  const synth = "speechSynthesis" in window ? window.speechSynthesis : null;
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  let voiceOn = !!(synth && V.speak);
+  try { const saved = localStorage.getItem("wren-voice"); if (saved !== null && synth) voiceOn = saved === "1"; } catch (e) {}
+  let chosenVoice = null;
+  function pickVoice() {
+    if (!synth) return;
+    const voices = synth.getVoices();
+    if (!voices.length) return;
+    const lang = (V.lang || "en").toLowerCase();
+    for (const want of V.preferredVoices || []) {
+      const v = voices.find((x) => x.name.toLowerCase().includes(want.toLowerCase()) && x.lang.toLowerCase().startsWith("en"));
+      if (v) { chosenVoice = v; return; }
+    }
+    chosenVoice = voices.find((x) => x.lang.toLowerCase() === lang)
+      || voices.find((x) => x.lang.toLowerCase().startsWith(lang.slice(0, 2))) || null;
+  }
+  if (synth) { pickVoice(); synth.addEventListener?.("voiceschanged", pickVoice); }
+  function speak(text) {
+    if (!synth || !voiceOn) return;
+    // Read phone numbers digit by digit, and don't spell out "AI".
+    const spoken = stripHtml(text)
+      .replace(/\((\d{3})\) (\d{3})-(\d{4})/g, (m, a, b, c) => [a, b, c].map((g) => g.split("").join(" ")).join(", "))
+      .replace(/\bURGENT\b/g, "urgent");
+    const u = new SpeechSynthesisUtterance(spoken);
+    if (chosenVoice) u.voice = chosenVoice;
+    u.lang = (chosenVoice && chosenVoice.lang) || V.lang || "en-CA";
+    u.rate = V.rate || 1; u.pitch = V.pitch || 1;
+    synth.speak(u);
+  }
+  function hush() { if (synth) synth.cancel(); }
+  async function untilQuiet(maxMs = 15000) {
+    if (!synth || !voiceOn) return;
+    const t0 = Date.now();
+    while ((synth.speaking || synth.pending) && Date.now() - t0 < maxMs) await wait(120);
+  }
+  function setVoice(on) {
+    voiceOn = on;
+    els.voiceBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    if (!on) hush();
+    try { localStorage.setItem("wren-voice", on ? "1" : "0"); } catch (e) {}
+  }
+
+  let rec = null, listening = false;
+  // Programmatic stop: discard whatever was heard. (Tapping the mic again calls rec.stop(), which submits.)
+  function stopListening() {
+    if (rec && listening) { rec.discard = true; try { rec.abort(); } catch (e) {} }
+    listening = false; els.mic.classList.remove("listening");
+  }
+  function startListening() {
+    if (!Recognition || listening) return;
+    hush();
+    const thisRec = rec = new Recognition();
+    rec.lang = V.lang || "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1; rec.continuous = false;
+    let finalText = "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript; else interim += e.results[i][0].transcript;
+      }
+      els.input.value = (finalText + interim).trim();
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        els.mic.hidden = true;
+        els.input.placeholder = "Microphone blocked. Type your reply instead…";
+      } else if (e.error === "no-speech") {
+        els.input.placeholder = "Didn't hear anything. Tap the mic or type…";
+      }
+    };
+    rec.onend = () => {
+      listening = false; els.mic.classList.remove("listening");
+      if (thisRec.discard) return;
+      const t = (finalText || els.input.value).trim();
+      if (t) handleInput(t);
+    };
+    try { rec.start(); listening = true; els.mic.classList.add("listening"); els.input.value = ""; } catch (e) { listening = false; }
+  }
 
   /* ---------- rendering ---------- */
   function scrollDown() { els.chat.scrollTop = els.chat.scrollHeight; }
@@ -567,6 +720,7 @@ const CONFIG = {
     const b = document.createElement("div");
     b.className = "bubble " + cls;
     if (html) b.innerHTML = text; else b.textContent = text;
+    S.log.push({ who, text: stripHtml(text) });
     return addRow(who, b);
   }
   function sys(text) {
@@ -575,6 +729,7 @@ const CONFIG = {
     els.chat.appendChild(d); scrollDown();
   }
   async function say(text, opts = {}) {
+    await untilQuiet();
     const typing = document.createElement("div");
     typing.className = "bubble typing"; typing.setAttribute("aria-label", CONFIG.receptionist.name + " is typing");
     typing.innerHTML = "<i></i><i></i><i></i>";
@@ -584,10 +739,12 @@ const CONFIG = {
     try { await wait(Math.min(t.maxTyping, t.minTyping + plain.length * t.perChar)); }
     finally { row.remove(); }
     bubble("wren", text, opts);
+    speak(text);
   }
 
   function setComposer(enabled, placeholder) {
-    els.input.disabled = !enabled; els.send.disabled = !enabled;
+    els.input.disabled = !enabled; els.send.disabled = !enabled; els.mic.disabled = !enabled;
+    if (!enabled) stopListening();
     els.input.placeholder = placeholder || "Type your reply…";
     if (enabled && !("ontouchstart" in window)) els.input.focus();
   }
@@ -606,12 +763,13 @@ const CONFIG = {
       renderChips(step.options.map((o) => ({ label: o.label, option: o })));
     } else if (step.type === "multi") {
       clearChips();
-      S.multiSel = new Set();
+      const hinted = S.hints[step.key] || new Set();
+      S.multiSel = new Set(step.options.filter((o) => hinted.has(optValue(o))));
       const go = document.createElement("button");
-      go.type = "button"; go.className = "chip primary"; go.textContent = "Continue"; go.disabled = true;
+      go.type = "button"; go.className = "chip primary"; go.textContent = "Continue"; go.disabled = S.multiSel.size === 0;
       const btns = step.options.map((o) => {
         const b = document.createElement("button");
-        b.type = "button"; b.className = "chip"; b.textContent = o.label; b.setAttribute("aria-pressed", "false");
+        b.type = "button"; b.className = "chip"; b.textContent = o.label; b.setAttribute("aria-pressed", S.multiSel.has(o) ? "true" : "false");
         b.addEventListener("click", () => {
           if (S.multiSel.has(o)) S.multiSel.delete(o);
           else {
@@ -636,8 +794,9 @@ const CONFIG = {
 
   /* ---------- parsing ---------- */
   function matchGuardrails(text) { return CONFIG.guardrails.filter((g) => g.match.test(text)); }
+  const optMatches = (o, text) => !!(o.match && o.match.test(text) && !(o.unless && o.unless.test(text)));
   function bestOption(options, text) {
-    const hits = options.filter((o) => o.match && o.match.test(text));
+    const hits = options.filter((o) => optMatches(o, text));
     hits.sort((a, b) => (b.priority || 1) - (a.priority || 1));
     return hits[0] || null;
   }
@@ -647,6 +806,7 @@ const CONFIG = {
   function parse(step, text, chip, guarded) {
     const isQuestion = /\?\s*$/.test(text);
     if (step.type === "choice") {
+      if (!chip && step.askOnConflict && step.options.filter((x) => optMatches(x, text)).length > 1) return { ok: false };
       const o = chip && chip.option ? chip.option : bestOption(step.options, text);
       if (o && o.other && o.followUp) return { followUp: o };
       if (o) return { ok: true, raw: optValue(o), display: optDisplay(o) };
@@ -654,14 +814,18 @@ const CONFIG = {
       return { ok: false };
     }
     if (step.type === "multi") {
-      let picked = chip && chip.multi ? chip.multi : step.options.filter((o) => o.match && o.match.test(text));
+      let picked = chip && chip.multi ? chip.multi : step.options.filter((o) => optMatches(o, text));
+      if (!(chip && chip.multi) && S.hints[step.key]) {
+        step.options.forEach((o) => { if (S.hints[step.key].has(optValue(o)) && !picked.includes(o)) picked.push(o); });
+      }
       if (picked.some((o) => !o.none)) picked = picked.filter((o) => !o.none);
       if (picked.length) return { ok: true, raw: picked.map(optValue), display: picked.map(optDisplay).join(", ") };
       if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: ["Other"], display: capFirst(text) };
       return { ok: false };
     }
     if (step.type === "phone") {
-      let d = text.replace(/\D/g, "");
+      const words = { zero: 0, oh: 0, o: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 };
+      let d = text.toLowerCase().replace(/\b(zero|oh|o|one|two|three|four|five|six|seven|eight|nine)\b/g, (w) => words[w]).replace(/\D/g, "");
       if (d.length === 11 && d[0] === "1") d = d.slice(1);
       if (d.length !== 10) return { ok: false };
       const f = `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
@@ -677,13 +841,39 @@ const CONFIG = {
 
   /* ---------- urgency ---------- */
   function computeUrgent() {
-    return CONFIG.urgent.rules.filter((r) => {
+    const fromRules = CONFIG.urgent.rules.filter((r) => {
       const v = S.raw[r.key];
       if (v == null) return false;
       if (r.includes) return Array.isArray(v) ? v.includes(r.includes) : v === r.includes;
       if (r.equals) return v === r.equals;
       return false;
     }).map((r) => r.reason);
+    return [...new Set([...fromRules, ...S.mentioned])];
+  }
+  // Scan free text for urgent situations the caller mentions before being asked.
+  function detectFromSpeech(text) {
+    const answered = [];
+    (CONFIG.urgent.detect || []).forEach((d) => {
+      if (!d.match.test(text) || (d.unless && d.unless.test(text))) return;
+      if (d.answers) {
+        const step = STEPS.find((s) => s.key === d.answers.key);
+        const opt = step && (step.options || []).find((o) => optValue(o) === d.answers.value);
+        if (step && S.raw[step.key] == null) {
+          S.raw[step.key] = d.answers.value;
+          S.answers[step.key] = opt ? optDisplay(opt) : d.answers.value;
+          answered.push(step.key);
+        }
+      } else if (!S.mentioned.includes(d.reason)) S.mentioned.push(d.reason);
+      if (d.preselect) (S.hints[d.preselect.key] = S.hints[d.preselect.key] || new Set()).add(d.preselect.value);
+    });
+    return answered;
+  }
+  async function announceUrgentIfNew() {
+    if (refreshUrgent()) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
+  }
+  function nextUnanswered(i) {
+    while (i < STEPS.length && S.raw[STEPS[i].key] != null) i++;
+    return i;
   }
   function refreshUrgent() {
     S.urgentReasons = computeUrgent();
@@ -717,7 +907,7 @@ const CONFIG = {
     }
     if (step.ack) await say(fill(step.ack));
     if (newly) await say(fill(CONFIG.urgent.callerMessage), { html: true, cls: "alert" });
-    S.idx++;
+    S.idx = nextUnanswered(S.idx + 1);
     if (S.idx < STEPS.length) await askStep(STEPS[S.idx]);
     else await goConfirm();
   }
@@ -730,16 +920,17 @@ const CONFIG = {
       S.raw[step.key] = optValue(o); S.answers[step.key] = optDisplay(o);
       refreshUrgent();
       await say(fill(CONFIG.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
-      S.idx = di + 1;
+      S.idx = nextUnanswered(di + 1);
     } else {
-      await say(fill(guards.length ? CONFIG.greetingReply.afterGuardrail : CONFIG.greetingReply.default));
-      S.idx = 0;
+      await say(fill(guards.length || S.urgentAnnounced ? CONFIG.greetingReply.afterGuardrail : CONFIG.greetingReply.default));
+      S.idx = nextUnanswered(0);
     }
     await askStep(STEPS[S.idx]);
   }
 
   async function onStep(text, chip, guards) {
     const step = STEPS[S.idx];
+    if (!chip && S.justAnswered.includes(step.key)) return accept(step, { ok: true, raw: S.raw[step.key], display: S.answers[step.key] });
     const r = parse(step, text, chip, guards.length > 0);
     if (r.followUp) {
       S.phase = "followUp"; S.pendingOption = r.followUp;
@@ -785,7 +976,9 @@ const CONFIG = {
       dl.append(dt, dd);
     });
     card.appendChild(dl);
+    S.log.push({ who: "wren", text: "[Read back] " + summaryRows().map((x) => x.label + ": " + x.value).join("; ") });
     addRow("wren", card);
+    speak(summaryRows().map((x) => x.label + ", " + x.value).join(". "));
     await say(fill(CONFIG.confirm.question));
     renderChips([{ label: CONFIG.confirm.yesLabel, yes: true }, { label: CONFIG.confirm.noLabel, no: true }]);
     setComposer(true, "Yes, or tell me what to fix…");
@@ -840,6 +1033,7 @@ const CONFIG = {
     S.phase = "done";
     clearChips(); setComposer(false, "Call ended");
     await say(fill(S.urgentReasons.length ? CONFIG.closing.urgent : CONFIG.closing.normal));
+    await untilQuiet(20000);
     stopTimer();
     sys("Call ended · " + mmss(Date.now() - S.start));
     await wait(CONFIG.timing.endDelayMs);
@@ -851,11 +1045,17 @@ const CONFIG = {
     if (S.busy || !text || S.phase === "done" || S.phase === "intro") return;
     const st = S;
     st.busy = true;
+    hush(); stopListening();
     clearChips(); setComposer(false); els.input.value = "";
     bubble("caller", text);
     try {
       const guards = matchGuardrails(text);
       for (const g of guards) await say(fill(g.reply));
+      S.justAnswered = [];
+      if (["greeting", "step", "followUp"].includes(S.phase) && !S.editing) {
+        S.justAnswered = detectFromSpeech(text);
+        await announceUrgentIfNew();
+      }
       const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, confirm: onConfirm, editPick: onEditPick };
       await handlers[S.phase](text, chip, guards);
     } catch (e) {
@@ -875,6 +1075,7 @@ const CONFIG = {
 
   async function startCall() {
     const id = ++runId;
+    hush(); stopListening();
     reset();
     els.intro.hidden = true; els.end.hidden = true; els.call.hidden = false;
     els.chat.innerHTML = ""; clearChips(); setComposer(false);
@@ -895,7 +1096,39 @@ const CONFIG = {
     } catch (e) { if (!(e instanceof Cancelled)) throw e; }
   }
 
+  function summaryText() {
+    const lines = [];
+    if (S.urgentReasons.length) lines.push(CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
+    lines.push(fill(CONFIG.summary.heading));
+    summaryRows().forEach(({ label, value }) => lines.push(label + ": " + value));
+    lines.push("", fill(CONFIG.summary.footer));
+    return lines.join("\n");
+  }
+  async function copySummary() {
+    const btn = $("copyBtn"), text = summaryText();
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+      const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch (e2) {}
+      ta.remove();
+    }
+    btn.textContent = ok ? "Copied" : "Couldn't copy";
+    setTimeout(() => { btn.textContent = "Copy summary"; }, 1800);
+  }
+  function renderTranscript() {
+    const box = $("transcript"); box.innerHTML = "";
+    S.log.forEach(({ who, text }) => {
+      const p = document.createElement("p");
+      const b = document.createElement("b");
+      b.textContent = (who === "wren" ? CONFIG.receptionist.name : "Caller") + ": ";
+      p.append(b, document.createTextNode(text));
+      box.appendChild(p);
+    });
+  }
+
   function showEnd() {
+    renderTranscript();
     els.call.hidden = true; els.end.hidden = false;
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -919,7 +1152,8 @@ const CONFIG = {
 
   function reset() {
     S = { phase: "intro", idx: 0, answers: {}, raw: {}, urgentReasons: [], urgentAnnounced: false,
-          busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now() };
+          busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now(),
+          mentioned: [], justAnswered: [], hints: {}, log: [] };
     els.urgentPill.hidden = true;
   }
 
@@ -934,13 +1168,23 @@ const CONFIG = {
   $("callBtnLabel").textContent = fill(CONFIG.intro.callLabel);
   $("headAvatar").textContent = CONFIG.receptionist.name[0];
   $("headName").textContent = CONFIG.receptionist.name + " · " + CONFIG.receptionist.role;
-  $("urgentPill").textContent = CONFIG.urgent.label;
+  $("urgentPill").textContent = fill(CONFIG.urgent.banner || CONFIG.urgent.label);
   $("endLede").textContent = fill(CONFIG.endScreen.lede);
   $("endNote").textContent = fill(CONFIG.endScreen.note);
 
   $("callBtn").addEventListener("click", startCall);
   $("restartTop").addEventListener("click", startCall);
   $("restartEnd").addEventListener("click", startCall);
+  $("copyBtn").addEventListener("click", copySummary);
+  if (synth) {
+    els.voiceBtn.hidden = false;
+    setVoice(voiceOn);
+    els.voiceBtn.addEventListener("click", () => setVoice(!voiceOn));
+  }
+  if (Recognition && V.listen) {
+    els.mic.hidden = false;
+    els.mic.addEventListener("click", () => { if (listening) { try { rec.stop(); } catch (e) {} } else startListening(); });
+  }
   els.form.addEventListener("submit", (e) => { e.preventDefault(); handleInput(els.input.value); });
 })();
 </script>
