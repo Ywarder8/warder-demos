@@ -26,6 +26,8 @@ client can't see another's), and every page is marked `noindex` so search engine
 | Painting In A Nutshell | https://warder-demos.pages.dev/demos/ai-receptionist/painting-in-a-nutshell/ |
 | Ultimate Touch Concrete | https://warder-demos.pages.dev/demos/ai-receptionist/ultimate-touch-concrete/ |
 | FloorSource | https://warder-demos.pages.dev/demos/ai-receptionist/floorsource/ |
+| Comfort Living HVAC | https://warder-demos.pages.dev/demos/ai-receptionist/comfort-living-hvac/ |
+| Salliss Plumbing | https://warder-demos.pages.dev/demos/ai-receptionist/salliss-plumbing/ |
 
 ## Layout
 
@@ -36,7 +38,7 @@ demos/
     clc-tree-services/index.html   One folder per client (PRESENTING.md alongside: walkthrough script)
     nz-systems/index.html
     petes-garage-door/index.html
-    …14 more client folders (see the table above)
+    …16 more client folders (see the table above)
 scripts/
   build-worker.js                  Bundles every page into dist/_worker.js for Cloudflare Pages
   serve.mjs                        Serves that bundle locally, compressed like Cloudflare
@@ -47,6 +49,7 @@ tests/
   nz-systems.test.js               NZ Systems: priority rule, gas override, scenarios, stress, a11y
   petes-garage-door.test.js        Pete's: URGENT rule, no-DIY safety rule, scenarios, stress, a11y
   batch-demos.test.js              The 14 batch demos: details, both scenarios, escalation both ways, probes
+  hvac-plumbing.test.js            Comfort Living HVAC and Salliss Plumbing (same harness, plus their own checks)
   quality.test.js                  Accessibility, keyboard, voice in/out, no network requests
   performance.test.js              Load, input latency, frame rate and memory on a throttled CPU
 ```
