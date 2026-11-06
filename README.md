@@ -12,6 +12,20 @@ client can't see another's), and every page is marked `noindex` so search engine
 | CLC Tree Services | https://warder-demos.pages.dev/demos/ai-receptionist/clc-tree-services/ |
 | NZ Systems | https://warder-demos.pages.dev/demos/ai-receptionist/nz-systems/ |
 | Pete's Garage Door Repair | https://warder-demos.pages.dev/demos/ai-receptionist/petes-garage-door/ |
+| Silver Concrete | https://warder-demos.pages.dev/demos/ai-receptionist/silver-concrete/ |
+| Jackson Electric | https://warder-demos.pages.dev/demos/ai-receptionist/jackson-electric/ |
+| Ape's Tree Service | https://warder-demos.pages.dev/demos/ai-receptionist/apes-tree-service/ |
+| Conservatree | https://warder-demos.pages.dev/demos/ai-receptionist/conservatree/ |
+| Jackson Renovations | https://warder-demos.pages.dev/demos/ai-receptionist/jackson-renovations/ |
+| Wayne's DriDek and Roofing | https://warder-demos.pages.dev/demos/ai-receptionist/waynes-dridek-and-roofing/ |
+| Rosco Electric | https://warder-demos.pages.dev/demos/ai-receptionist/rosco-electric/ |
+| Radiant Electric | https://warder-demos.pages.dev/demos/ai-receptionist/radiant-electric/ |
+| Otter Creek Construction | https://warder-demos.pages.dev/demos/ai-receptionist/otter-creek-construction/ |
+| Jonker's Lawn Care Inc. | https://warder-demos.pages.dev/demos/ai-receptionist/jonkers-lawn-care/ |
+| Moore Flooring and Design | https://warder-demos.pages.dev/demos/ai-receptionist/moore-flooring-and-design/ |
+| Painting In A Nutshell | https://warder-demos.pages.dev/demos/ai-receptionist/painting-in-a-nutshell/ |
+| Ultimate Touch Concrete | https://warder-demos.pages.dev/demos/ai-receptionist/ultimate-touch-concrete/ |
+| FloorSource | https://warder-demos.pages.dev/demos/ai-receptionist/floorsource/ |
 
 ## Layout
 
@@ -22,6 +36,7 @@ demos/
     clc-tree-services/index.html   One folder per client (PRESENTING.md alongside: walkthrough script)
     nz-systems/index.html
     petes-garage-door/index.html
+    …14 more client folders (see the table above)
 scripts/
   build-worker.js                  Bundles every page into dist/_worker.js for Cloudflare Pages
   serve.mjs                        Serves that bundle locally, compressed like Cloudflare
@@ -31,6 +46,7 @@ tests/
   buttons.test.js                  Taps every button in both scenarios on the deploy bundle
   nz-systems.test.js               NZ Systems: priority rule, gas override, scenarios, stress, a11y
   petes-garage-door.test.js        Pete's: URGENT rule, no-DIY safety rule, scenarios, stress, a11y
+  batch-demos.test.js              The 14 batch demos: details, both scenarios, escalation both ways, probes
   quality.test.js                  Accessibility, keyboard, voice in/out, no network requests
   performance.test.js              Load, input latency, frame rate and memory on a throttled CPU
 ```
@@ -51,7 +67,8 @@ tests/
    the call with a safety instruction and an URGENT flag), `captureFromGreeting` and `editMatch`
    on questions, `intro.where` / `intro.footer`, `endScreen.title`, and on `urgent`:
    `smsBanner`, `reasonsSentenceCase`, `announceAfterGreeting`; `questionsDontEscalate` /
-   `questionFallback` (questions get answered but never set priority); `unless` on guardrails.
+   `questionFallback` (questions get answered but never set priority); `unless` on guardrails;
+   on `safetyOverride`: `priority`, `smsBanner`, `headerBanner`, `nextStep` (e.g. CRITICAL).
 2. Edit the `CONFIG` object at the top of the script: business details, the receptionist's
    name (`receptionist.name`, used everywhere), colours, the demo scenarios (greeting, day and
    time, one-tap sample answers), the intake flows (questions, summary fields, closing lines),

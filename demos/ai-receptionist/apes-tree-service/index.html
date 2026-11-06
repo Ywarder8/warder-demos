@@ -1,0 +1,1760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14382b">
+<meta name="robots" content="noindex, nofollow">
+<title>Ape's Tree Service · AI Receptionist Demo</title>
+<meta name="description" content="Call Ape's Tree Service and talk to Ava, an AI receptionist that takes the details and texts a summary.">
+<meta property="og:title" content="Ape's Tree Service · AI Receptionist Demo">
+<meta property="og:description" content="Try the call: Ava answers for Ape's Tree Service and texts a summary.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232e7a59'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='700' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    /* Overridden at boot from CONFIG.theme */
+    --brand-900: #0f2d22;
+    --brand-800: #14382b;
+    --brand-700: #1d4d3b;
+    --brand-500: #2e7a59;
+    --brand-300: #8cc9a6;
+    --char-950: #141618;
+    --char-900: #1b1e21;
+    --char-800: #23272b;
+    --char-700: #2d3237;
+    --char-600: #3a4046;
+    --text: #edf2ee;
+    --muted: #9ea9a3;
+    --urgent: #c8282e;   /* 5.3:1 against white text */
+    --urgent-bg: #3a1618;
+    --radius: 18px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--char-950);
+    background-image: radial-gradient(1200px 600px at 50% -10%, rgba(46,122,89,.18), transparent 60%);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--brand-300); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .app {
+    max-width: 560px;
+    margin: 0 auto;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--char-900);
+    border-left: 1px solid var(--char-800);
+    border-right: 1px solid var(--char-800);
+  }
+
+  /* ---------- Intro ---------- */
+  .intro {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 32px 24px;
+    gap: 18px;
+  }
+  .logo {
+    width: 84px; height: 84px; border-radius: 24px;
+    display: grid; place-items: center;
+    background: linear-gradient(145deg, var(--brand-500), var(--brand-800));
+    font-weight: 800; letter-spacing: .5px; font-size: 22px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .intro h1 { margin: 6px 0 0; font-size: 26px; line-height: 1.2; }
+  .intro .where { color: var(--muted); margin: 4px 0 0; font-size: 14.5px; line-height: 1.5; white-space: pre-line; }
+  .scenario {
+    background: var(--char-800); border: 1px solid var(--char-700);
+    border-radius: 14px; padding: 14px 16px; max-width: 380px;
+    color: #cfd7d2; font-size: 15px; line-height: 1.5;
+  }
+  .scenario strong { color: var(--text); }
+  .call-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    border: 0; border-radius: 999px;
+    padding: 15px 26px; font-size: 17px; font-weight: 650;
+    background: var(--brand-500); color: #fff;
+    box-shadow: 0 8px 24px rgba(46,122,89,.35);
+    transition: transform .12s ease, background .15s ease;
+  }
+  .call-btn:hover { background: #33875f; }
+  .call-btn:active { transform: scale(.97); }
+  .call-btn svg { width: 20px; height: 20px; }
+  .fineprint { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .picker-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 420px; }
+  .picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+  .pick {
+    text-align: left; border: 1px solid var(--char-700); background: var(--char-800); color: var(--text);
+    border-radius: 14px; padding: 12px 13px; display: flex; flex-direction: column; gap: 3px;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .pick:hover { border-color: var(--brand-500); }
+  .pick[aria-checked="true"] { border-color: var(--brand-500); background: rgba(46,122,89,.16); box-shadow: inset 0 0 0 1px var(--brand-500); }
+  .pick .t { font-weight: 650; font-size: 15px; }
+  .pick .w { font-size: 12px; color: var(--brand-300); text-transform: uppercase; letter-spacing: .5px; }
+  .pick .b { font-size: 13.5px; color: #c9d2cd; line-height: 1.4; }
+  .when-label { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+
+  /* ---------- Call header ---------- */
+  .call-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    background: var(--brand-800);
+    border-bottom: 1px solid var(--brand-900);
+  }
+  .avatar {
+    flex: none; width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--brand-500); font-weight: 700; font-size: 16px;
+  }
+  .who { flex: 1; min-width: 0; }
+  .who .name { margin: 0; font-weight: 650; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .who .sub { color: var(--brand-300); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .live-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #5fd68f; }
+  .live-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #5fd68f; animation: pulse 1.8s ease-out infinite; will-change: transform, opacity; }
+  .live-dot.off { background: var(--muted); }
+  .live-dot.off::after { display: none; }
+  @keyframes pulse { 0% { transform: scale(1); opacity: .55; } 70%, 100% { transform: scale(3); opacity: 0; } }
+  .who .sub span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .urgent-bar.priority { background: #a14a07; }
+  .urgent-bar {
+    background: var(--urgent); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .3px;
+    padding: 7px 16px; text-align: center; animation: rise .22s ease-out;
+  }
+  .icon-btn {
+    flex: none; border: 1px solid rgba(255,255,255,.14); background: transparent;
+    border-radius: 10px; padding: 7px 10px; font-size: 13px; color: #d8e6dd;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,.06); }
+  .icon-btn.round { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+  .icon-btn svg { width: 19px; height: 19px; }
+  #voiceBtn .mute { display: none; }
+  #voiceBtn[aria-pressed="false"] .wave { display: none; }
+  #voiceBtn[aria-pressed="false"] .mute { display: inline; }
+  #voiceBtn[aria-pressed="false"] { color: var(--muted); }
+  .mic {
+    flex: none; width: 46px; height: 46px; border-radius: 50%;
+    border: 1px solid var(--char-600); background: var(--char-800); color: var(--brand-300);
+    display: grid; place-items: center;
+  }
+  .mic svg { width: 20px; height: 20px; }
+  .mic:disabled { opacity: .4; cursor: not-allowed; }
+  .mic { position: relative; }
+  .mic.listening { background: var(--urgent); border-color: var(--urgent); color: #fff; }
+  .mic.listening::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 2px solid var(--urgent); animation: micPulse 1.4s ease-out infinite; will-change: transform, opacity; pointer-events: none; }
+  @keyframes micPulse { 0% { transform: scale(1); opacity: .7; } 70%, 100% { transform: scale(1.35); opacity: 0; } }
+  .end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .ghost {
+    border: 1px solid var(--brand-500); background: transparent; color: var(--brand-300);
+    border-radius: 999px; padding: 13px 22px; font-weight: 600; font-size: 16px;
+  }
+  .ghost:hover { background: rgba(46,122,89,.15); }
+  .transcript { width: 100%; max-width: 360px; background: var(--char-800); border: 1px solid var(--char-700); border-radius: 14px; }
+  .transcript summary { cursor: pointer; padding: 14px 16px; min-height: 44px; font-size: 14px; color: var(--brand-300); }
+  .transcript > div { padding: 0 16px 14px; font-size: 13.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+  .transcript p { margin: 0; }
+  .transcript b { color: var(--brand-300); font-weight: 600; }
+
+  /* ---------- Chat ---------- */
+  .chat:focus-visible { outline: 2px solid var(--brand-300); outline-offset: -2px; }
+  .chat {
+    flex: 1; overflow-y: auto; padding: 18px 14px 8px;
+    display: flex; flex-direction: column; gap: 10px;
+    scroll-behavior: smooth;
+  }
+  .row { display: flex; gap: 8px; align-items: flex-end; contain: layout; }
+  .row.caller { justify-content: flex-end; }
+  .row .mini {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--brand-700); display: grid; place-items: center;
+    font-size: 11.5px; font-weight: 700; color: var(--brand-300);
+  }
+  .bubble {
+    max-width: 82%; padding: 10px 14px; border-radius: var(--radius);
+    font-size: 15.5px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word;
+    animation: rise .22s ease-out;
+  }
+  .agent .bubble { background: var(--char-700); border-bottom-left-radius: 6px; }
+  .caller .bubble { background: var(--brand-500); color: #fff; border-bottom-right-radius: 6px; }
+  .agent .bubble.alert { background: var(--urgent-bg); border: 1px solid rgba(229,72,77,.5); }
+  .agent .bubble.alert b { color: #ff8b8e; }
+  .agent .bubble.notice { background: #3a2a10; border: 1px solid rgba(217,140,40,.55); }
+  .agent .bubble.notice b { color: #f3b35b; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+  .sys {
+    align-self: center; font-size: 12.5px; color: var(--muted);
+    background: var(--char-800); border-radius: 999px; padding: 5px 12px;
+  }
+  .card { padding: 12px 14px; white-space: normal; }
+  .card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 14.5px; }
+  .card dt { color: var(--muted); }
+  .card dd { margin: 0; }
+  .card .flag { grid-column: 1 / -1; color: #ff8b8e; font-weight: 800; letter-spacing: .5px; }
+  .card .flag.amber { color: #f3b35b; }
+  .typing { display: inline-flex; gap: 4px; padding: 13px 14px; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: .3; transform: none;} 30% { opacity: 1; transform: translateY(-2px);} }
+
+  /* ---------- Composer ---------- */
+  .composer {
+    border-top: 1px solid var(--char-800);
+    background: var(--char-900);
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chips:empty { display: none; }
+  .chip {
+    border: 1px solid var(--brand-500); background: transparent; color: var(--brand-300);
+    border-radius: 999px; padding: 10px 16px; font-size: 15px; min-height: 44px;
+    transition: background .12s ease, color .12s ease;
+  }
+  .chip:hover { background: rgba(46,122,89,.18); }
+  .chip[aria-pressed="true"] { background: var(--brand-500); color: #fff; }
+  .chip.primary { background: var(--brand-500); color: #fff; font-weight: 600; }
+  .chip.primary:disabled { opacity: .4; cursor: not-allowed; }
+  .chip-hint { width: 100%; font-size: 12.5px; color: var(--muted); margin: -2px 0 0; }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input {
+    flex: 1; min-width: 0;
+    background: var(--char-800); border: 1px solid var(--char-700); color: var(--text);
+    border-radius: 999px; padding: 12px 16px; font-size: 16px;
+  }
+  .input-row input::placeholder { color: #77827c; }
+  .input-row input:disabled { opacity: .55; }
+  .send {
+    flex: none; width: 46px; height: 46px; border-radius: 50%; border: 0;
+    background: var(--brand-500); display: grid; place-items: center;
+  }
+  .send:disabled { opacity: .4; cursor: not-allowed; }
+  .send svg { width: 20px; height: 20px; }
+
+  /* ---------- End screen ---------- */
+  .end {
+    flex: 1; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 32px; gap: 18px;
+  }
+  .end h1:focus { outline: none; }
+  .end h1 { margin: 0; font-size: 20px; text-align: center; }
+  .end .lede { margin: -8px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+  .phone {
+    width: 100%; max-width: 360px;
+    background: #000; border-radius: 44px; padding: 12px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5), inset 0 0 0 2px #2b2f33;
+  }
+  .screen { background: #f2f2f4; color: #111; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; min-height: 560px; }
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 4px; font-size: 13px; font-weight: 600; }
+  .status .island { width: 92px; height: 24px; background: #000; border-radius: 14px; }
+  .thread-head { text-align: center; padding: 8px 12px 12px; border-bottom: 1px solid #dcdce0; background: #f7f7f9; }
+  .thread-head .tav {
+    width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 6px;
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px;
+    background: linear-gradient(145deg, var(--brand-500), var(--brand-800));
+  }
+  .thread-head .tt { font-weight: 650; font-size: 14.5px; }
+  .thread-head .ts { color: #6b6f76; font-size: 12px; margin-top: 2px; }
+  .thread { flex: 1; padding: 14px 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .thread .stamp { text-align: center; color: #5f636a; font-size: 11.5px; margin-bottom: 8px; }
+  .sms {
+    align-self: flex-end; max-width: 88%;
+    background: var(--brand-500); color: #fff;
+    border-radius: 18px; border-bottom-right-radius: 5px;
+    padding: 10px 13px; font-size: 14.5px; line-height: 1.42;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  /* Banner across the top of the team's text: red URGENT, amber priority/storm, none for routine */
+  .sms-banner {
+    margin: -10px -13px 8px; padding: 8px 13px; border-radius: 18px 18px 0 0;
+    font-weight: 800; letter-spacing: 1px; font-size: 14px; color: #fff; white-space: normal;
+  }
+  .sms-banner.urgent { background: var(--urgent); font-size: 16px; letter-spacing: 1.5px; }
+  .sms-banner.storm, .sms-banner.priority { background: #a14a07; }
+  .sms-reasons { margin: -4px 0 8px; font-weight: 650; white-space: normal; }
+  .sms.sms-urgent { box-shadow: 0 0 0 2px var(--urgent); }
+  .sms b { font-weight: 650; }
+  .nowrap { white-space: nowrap; }
+  .delivered { align-self: flex-end; color: #5f636a; font-size: 11.5px; margin-right: 4px; }
+  .compose-bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px 14px; }
+  .compose-bar span { flex: 1; border: 1px solid #d0d0d6; border-radius: 999px; padding: 7px 12px; color: #6b6f76; font-size: 13.5px; background: #fff; }
+  .restart {
+    border: 0; border-radius: 999px; padding: 13px 28px; font-weight: 650; font-size: 16px;
+    background: var(--brand-500); color: #fff;
+  }
+  .restart:hover { background: #33875f; }
+  .note { color: var(--muted); font-size: 12.5px; text-align: center; max-width: 360px; margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+  @media (min-width: 600px) {
+    .app { margin-top: 0; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+
+  <!-- Intro -->
+  <section class="intro" id="intro">
+    <div class="logo" id="introLogo"></div>
+    <div>
+      <h1 id="introName"></h1>
+      <p class="where" id="introWhere"></p>
+    </div>
+    <div class="scenario" id="introScenario"></div>
+    <div class="picker-wrap">
+      <span class="when-label" id="pickLabel"></span>
+      <div class="picker" role="radiogroup" id="picker"></div>
+    </div>
+    <button class="call-btn" id="callBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+      <span id="callBtnLabel"></span>
+    </button>
+    <p class="fineprint">Demo only. Nothing is saved, and typed answers never leave your browser.</p>
+  </section>
+
+  <!-- Call -->
+  <section id="call" hidden style="display:flex; flex-direction:column; flex:1; min-height:0;">
+    <header class="call-head">
+      <div class="avatar" id="headAvatar"></div>
+      <div class="who">
+        <h1 class="name" id="headName"></h1>
+        <div class="sub"><span class="live-dot" id="liveDot"></span><span id="headSub"></span></div>
+      </div>
+      <button class="icon-btn round" id="voiceBtn" aria-label="Receptionist voice" aria-pressed="true" title="Voice on/off" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6"/></svg>
+      </button>
+      <button class="icon-btn round" id="restartTop" aria-label="Start over" title="Start over">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+    </header>
+    <div class="urgent-bar" id="urgentPill" role="status" hidden></div>
+    <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Call transcript" tabindex="0"></div>
+    <div class="composer">
+      <div class="chips" id="chips"></div>
+      <form class="input-row" id="form" autocomplete="off">
+        <input id="input" type="text" aria-label="Your reply" placeholder="Type your reply…" disabled>
+        <button class="mic" id="mic" type="button" aria-label="Speak your reply" title="Speak your reply" hidden disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
+        <button class="send" id="send" type="submit" aria-label="Send" disabled>
+          <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- End screen -->
+  <section class="end" id="end" hidden>
+    <h1 id="endTitle" tabindex="-1">The crew's phone just buzzed</h1>
+    <p class="lede" id="endLede"></p>
+    <div class="phone" aria-label="Text message mockup">
+      <div class="screen">
+        <div class="status"><span id="smsClock">9:41</span><span class="island"></span><span>5G ▮▮▮</span></div>
+        <div class="thread-head">
+          <div class="tav" id="smsAvatar"></div>
+          <div class="tt" id="smsTitle"></div>
+          <div class="ts" id="smsSub"></div>
+        </div>
+        <div class="thread">
+          <div class="stamp" id="smsStamp"></div>
+          <div class="sms" id="smsBody"></div>
+          <div class="delivered">Delivered</div>
+        </div>
+        <div class="compose-bar"><span>Text Message</span></div>
+      </div>
+    </div>
+    <div class="end-actions">
+      <button class="restart" id="restartEnd">Start over</button>
+      <button class="ghost" id="copyBtn">Copy summary</button>
+    </div>
+    <details class="transcript">
+      <summary>Show call transcript</summary>
+      <div id="transcript"></div>
+    </details>
+    <p class="note" id="endNote"></p>
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   CONFIG — swap this object to reuse the demo for another business.
+   Everything business-specific (names, wording, questions, urgency
+   rules, guardrails, summary layout, colours) lives here.
+   ===================================================================== */
+// CONFIG for Ape's Tree Service. Generated from the shared receptionist pattern; edit freely.
+const CONFIG = {
+  business: {
+    name: "Ape's Tree Service",
+    shortName: "Ape's Tree Service",
+    initials: "AT",
+    phone: "(519) 317-6493",
+    location: "London",
+  },
+  receptionist: {
+    name: "Ava",
+    role: "AI receptionist",
+  },
+  theme: {
+    "--brand-900": "#0f2d22",
+    "--brand-800": "#14382b",
+    "--brand-700": "#1d4d3b",
+    "--brand-500": "#2e7a59",
+    "--brand-300": "#8cc9a6",
+    "--char-950": "#141618",
+    "--char-900": "#1b1e21",
+  },
+  intro: {
+    where: "Tree service · London",
+    pitch: "Dead and dangerous tree removals are the core work, and the only way in is one phone. {receptionist} answers when nobody can, flags the dangerous ones, and texts the team.",
+    pickLabel: "Pick a call to try",
+    callLabel: "Call {businessPhone}",
+    footer: "Demo only. Nothing is saved, and typed answers never leave your browser.",
+  },
+  scenarios: [
+    {
+      id: "leaning",
+      title: "Dead tree leaning",
+      when: "After high wind",
+      blurb: "A dead tree is leaning toward the house.",
+      flow: "tree",
+      clock: {
+        day: "Today",
+        time: "9:05 AM",
+      },
+      greeting: "Thanks for calling {business}, this is {receptionist}. The crew's out on a job right now, so I'm taking calls for the team. How can I help?",
+      suggestions: [
+        "After the wind last night, a dead tree is leaning toward our house",
+        "Am I talking to a real person?",
+        "Should I cut it down myself?",
+      ],
+      samples: {
+        name: "Paul Kerr",
+        address: "52 Elm Street, London",
+        phone: "519-555-0141",
+      },
+    },
+    {
+      id: "quote",
+      title: "Removal quote",
+      when: "No rush",
+      blurb: "A quote to remove a healthy tree.",
+      flow: "tree",
+      clock: {
+        day: "Today",
+        time: "11:30 AM",
+      },
+      greeting: "Thanks for calling {business}, this is {receptionist}. The crew's out on a job right now, so I'm taking calls for the team. How can I help?",
+      suggestions: [
+        "I'd like a quote to remove a healthy maple in the backyard",
+        "Am I talking to a real person?",
+        "How much do you charge?",
+      ],
+      samples: {
+        name: "Ruth Ellis",
+        address: "7 Pine Street, London",
+        phone: "519-555-0142",
+      },
+    },
+  ],
+  routing: [],
+  flows: {
+    tree: {
+      heading: "Tree call",
+      priority: {
+        urgent: "URGENT",
+        normal: "Routine",
+      },
+      nextStep: {
+        urgent: "Call back as soon as possible",
+        normal: "Call back to arrange the quote",
+      },
+      safety: {
+        lines: "In the meantime, please stay clear of the tree and any downed lines.",
+        tree: "In the meantime, please stay clear of the tree.",
+        linesWhen: {
+          key: "powerLines",
+          values: ["Yes", "Not sure"],
+        },
+      },
+      greetingReply: {
+        detected: "I'm sorry to hear that. Sounds like {phrase}. Let me get a few details for the team.",
+        afterGuardrail: "Let me get a few details for the team.",
+        default: "I can help with that. Let me get a few details for the team.",
+      },
+      closing: {
+        urgent: "Thanks, {first}. I've marked this URGENT for the team, and they'll call you back at {phone} as soon as possible. {safety}",
+        normal: "Thanks, {first}. I've passed this to the team, and they'll call you back at {phone} to arrange the quote.",
+      },
+      fields: [
+        {
+          label: "Priority",
+          key: "priority",
+        },
+        {
+          label: "Caller",
+          key: "name",
+        },
+        {
+          label: "Number",
+          key: "phone",
+        },
+        {
+          label: "Address",
+          key: "address",
+        },
+        {
+          label: "What happened",
+          key: "incident",
+        },
+        {
+          label: "Threatening",
+          key: "threatens",
+        },
+        {
+          label: "Power lines",
+          key: "powerLines",
+        },
+        {
+          label: "Injuries",
+          key: "injuries",
+        },
+        {
+          label: "Next step",
+          key: "nextStep",
+        },
+      ],
+      steps: [
+        {
+          key: "incident",
+          label: "What happened",
+          type: "choice",
+          prompt: "Can you tell me what's going on with the tree?",
+          retry: "Sorry, can you tell me what's going on with the tree?",
+          placeholder: "Describe what's going on…",
+          freeform: true,
+          options: [
+            {
+              label: "Dead or leaning tree",
+              phrase: "a dead or leaning tree",
+              priority: 3,
+              match: /\b(dead|dying|lean(s|ing|ed)?|tilt\w*|rotten|hollow|split trunk|cracked trunk)\b/i,
+              unless: /\bnot (dead|leaning)\b/i,
+            },
+            {
+              label: "Tree down",
+              phrase: "a tree down",
+              match: /\btrees?\b[^.!?]*\b(down|fell|fallen|uprooted|toppled|came down|knocked over)\b|\b(uprooted|toppled)\b/i,
+            },
+            {
+              label: "Limb down",
+              phrase: "a limb down",
+              priority: 2,
+              match: /\b(limbs?|branch(es)?|boughs?)\b[^.!?]*\b(down|fell|fallen|broke|snapped|came down|hanging)\b/i,
+            },
+            {
+              label: "Removal quote",
+              phrase: "a removal quote",
+              priority: 1,
+              match: /\b(quote|estimate|remov\w*|take (it|a tree|the tree) down|cut (it|a tree|the tree) down)\b/i,
+            },
+            {
+              label: "Something else",
+              other: true,
+              followUp: "No problem. Can you describe it briefly?",
+            },
+          ],
+          detectFromGreeting: true,
+          ack: "Okay, got it.",
+        },
+        {
+          key: "threatens",
+          label: "Threatening",
+          type: "multi",
+          prompt: "Is it threatening a house or a car?",
+          preselectFromSpeech: true,
+          hint: "Pick all that apply, then tap Continue.",
+          retry: "Sorry, is it threatening a house or a car? Or neither?",
+          ack: "Thanks.",
+          placeholder: "House, car, or neither…",
+          freeform: true,
+          options: [
+            {
+              label: "House",
+              match: /\b(house|home|roof|garage|deck|porch|building|shed)\b/i,
+            },
+            {
+              label: "Car",
+              match: /\b(cars?|vehicles?|truck|van|suv)\b/i,
+            },
+            {
+              label: "Neither",
+              none: true,
+              summary: "No house or car at risk",
+              match: /\b(no|none|nothing|neither|not near|away from)\b/i,
+            },
+          ],
+        },
+        {
+          key: "powerLines",
+          label: "Power lines",
+          type: "choice",
+          prompt: "Are any power lines down or involved?",
+          retry: "Sorry, are any power lines down or involved? Yes, no, or not sure?",
+          placeholder: "Yes, no, or not sure…",
+          freeform: false,
+          askOnConflict: true,
+          options: [
+            {
+              label: "Yes, lines are involved",
+              value: "Yes",
+              summary: "YES, down or involved",
+              match: /\b(yes|yeah|yep|yup|down|sparking|touching|on the (lines?|wires?)|hit the (lines?|wires?)|involved)\b/i,
+              unless: /\b(no|not|aren'?t|isn'?t|none|nothing)\b[^.,!?]*\b(down|lines?|wires?|involved)\b|\b(not sure|unsure|don'?t know|no idea)\b/i,
+            },
+            {
+              label: "No lines involved",
+              value: "No",
+              summary: "None involved",
+              match: /\b(no|nope|nah|none|no lines?|not involved)\b/i,
+              unless: /\b(no idea|not sure)\b/i,
+            },
+            {
+              label: "Not sure",
+              value: "Not sure",
+              summary: "Not sure, crew to check",
+              match: /\b(not sure|unsure|don'?t know|dunno|maybe|can'?t tell|no idea|possibly|might be)\b/i,
+            },
+          ],
+        },
+        {
+          key: "injuries",
+          label: "Injuries",
+          type: "choice",
+          prompt: "Is anyone hurt?",
+          retry: "Just to be sure, is anyone hurt? Yes or no?",
+          placeholder: "Yes or no…",
+          freeform: false,
+          askOnConflict: true,
+          options: [
+            {
+              label: "Yes, someone is hurt",
+              value: "Yes",
+              summary: "YES, someone is hurt",
+              match: /\b(yes|yeah|yep|yup|ambulance|hurt|injured|injuries|bleeding|trapped|pinned)\b/i,
+              unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t|no injur\w*)\b[^.,!?]*\b(hurt|injur\w*|bleeding|trapped|pinned)\b/i,
+            },
+            {
+              label: "No one is hurt",
+              value: "No",
+              summary: "No one hurt",
+              match: /\b(no|nope|nobody|no one|noone|not hurt|we'?re (ok|okay|fine|good|safe)|everyone'?s? (is )?(ok|okay|fine|safe|good)|all good)\b/i,
+            },
+          ],
+        },
+        "name",
+        {
+          use: "address",
+          prompt: "Thanks, {first}. What's the address where the tree is?",
+        },
+        "phone",
+      ],
+    },
+  },
+  sharedSteps: {
+    name: {
+      key: "name",
+      label: "Caller",
+      type: "text",
+      prompt: "Can I get your name, please?",
+      retry: "Sorry, could I get your name?",
+      placeholder: "Your name…",
+      clean: /^(hi|hey|hello)?[,.\s]*(my name is|my name's|name's|this is|it's|it is|i'm|i am)\s+/i,
+    },
+    address: {
+      key: "address",
+      label: "Address",
+      type: "text",
+      prompt: "What's the address?",
+      retry: "Sorry, what's the address?",
+      placeholder: "Street address…",
+    },
+    phone: {
+      key: "phone",
+      label: "Callback",
+      type: "phone",
+      prompt: "And what's the best number to call you back on?",
+      retry: "Sorry, I didn't catch a full 10-digit number. What's the best callback number?",
+      placeholder: "e.g. 519 555 0199",
+    },
+  },
+  urgent: {
+    label: "URGENT",
+    banner: "URGENT · Team being notified",
+    smsBanner: "URGENT - {reasons}",
+    reasonsSentenceCase: true,
+    rules: [
+      {
+        key: "threatens",
+        includes: "House",
+        reason: "Threatening a house",
+      },
+      {
+        key: "threatens",
+        includes: "Car",
+        reason: "Threatening a car",
+      },
+      {
+        key: "powerLines",
+        equals: "Yes",
+        reason: "Power lines involved",
+      },
+      {
+        key: "injuries",
+        equals: "Yes",
+        reason: "Someone is hurt",
+      },
+    ],
+    callerMessage: "I'm marking this call <b>URGENT</b>, and the team will be notified right away.",
+    callerSafety: {
+      lines: "Please stay clear of the tree and any downed lines.",
+      tree: "Please stay clear of the tree.",
+    },
+    detect: [
+      {
+        reason: "Power lines involved",
+        match: /\b(power|hydro|electric(al)?)\s*(lines?|wires?|cables?|poles?)\b|\b(downed|live|sparking)\s+(lines?|wires?)\b|\b(wires?|lines?)\s+(are\s+|is\s+)?(down|sparking)\b/i,
+        unless: /\b(no|not|didn'?t|did not|missed|nowhere near|away from|clear of)\b[^.,!?]*\b(power|hydro|lines?|wires?)\b/i,
+        answers: {
+          key: "powerLines",
+          value: "Yes",
+        },
+      },
+      {
+        reason: "Someone is hurt",
+        match: /\b(is|are|was|were|got|been|'s|'re)\s+(badly\s+|really\s+|very\s+)?(hurt|injured|bleeding|trapped|pinned)\b|\b(need|call(ed)?)\s+an?\s+ambulance\b/i,
+        unless: /\b(no one|noone|nobody|not|isn'?t|aren'?t|wasn'?t|weren'?t)\b[^.,!?]*\b(hurt|injured|bleeding|trapped|pinned)\b/i,
+        answers: {
+          key: "injuries",
+          value: "Yes",
+        },
+      },
+    ],
+  },
+  voice: {
+    speak: true,
+    listen: true,
+    lang: "en-CA",
+    rate: 1.03,
+    pitch: 1,
+    preferredVoices: ["Google UK English Female", "Samantha", "Microsoft Aria", "Microsoft Jenny", "Karen", "Moira", "Female"],
+  },
+  questionsDontEscalate: true,
+  questionFallback: "That's a good question for the team. I'll pass it along for the callback.",
+  guardrails: [
+    {
+      id: "diy",
+      match: /(how (do|can|should|would) (i|we) (fix|repair|patch|seal|reset|rewire|wire|replace|cut|remove|trim|climb|stop|install|lay|pour|paint|relight|restart|turn)\b)|\b(fix\w*|repair\w*|patch\w*|seal\w*|replac\w*|install\w*|rewir\w*|wir(e|ing)|cut\w*|climb\w*|trim\w*|remov\w*|pour\w*|paint\w*|lay\w*|pull\w*|mov\w*|lift\w*|drag\w*|take|get|do)\b[^.?!]{0,30}\b(myself|ourselves|on my own)\b|\bshould (i|we) (cut|climb|pull|move|go near|get)\b|\bchainsaw\b|\bget it down (myself|ourselves)\b/i,
+      unless: /\b(can|could|would|will) (you|someone|somebody|they|he|she|the team)( please)? (fix|repair|replace|install|do|come|look|check|cut|remove|patch|seal|paint|pour|lay)\b/i,
+      reply: "Please don't try to cut or move it yourself. Stay clear of the tree and any downed lines, and the team will handle it.",
+    },
+    {
+      id: "ai",
+      match: /\b(are|r) (you|u) (an? )?(ai|a\.i\.|bot|robot|machine|computer|real|human|person|live|recording)\b|\bis (this|that) (an? )?(ai|bot|robot|real person|human|recording|machine)\b|\b(real|live|actual) (person|human)\b|\bai\b|\bchat ?bot\b/i,
+      reply: "I'm an AI receptionist for {business}. I take down your details and pass them straight to the team.",
+    },
+    {
+      id: "price",
+      match: /\b(prices|pricing|costs?|how much|charges?|rates|fees?|expensive|cheap|afford\w*)\b|\b(what'?s the|what is the|your|a|the) price\b|\bprice (of|for|on|range|list)\b|\$/i,
+      reply: "I can't give prices over the phone, and the team will go over costs with you on the callback.",
+    },
+    {
+      id: "eta",
+      match: /\b(when (will|can|are|do|could|would)|how (long (until|till|before|will it take|would it take|does it take|is it)|soon|fast|quick(ly)?)|arriv(e|al|ing)|eta|come out|get here|be here|show up|send someone)\b/i,
+      reply: "I can't promise an arrival or appointment time, but I'll pass your details straight to the team for a callback.",
+    },
+    {
+      id: "diagnose",
+      match: /\b(what'?s wrong with (it|my|the)|what is wrong|can you (tell|diagnose|figure out) what|diagnos\w*|could it be|do you think it'?s|is it (fixable|worth (fixing|repairing))|is (that|this) (normal|bad|serious))\b/i,
+      reply: "I can't diagnose anything over the phone, but I'll pass along everything you've told me.",
+    },
+  ],
+  confirm: {
+    intro: "Let me read that back to you.",
+    question: "Is all of that correct?",
+    yesLabel: "Yes, that's right",
+    noLabel: "Something needs fixing",
+    yes: /\b(yes|yeah|yep|yup|correct|right|good|perfect|great|that'?s it|all set|looks good|sounds good)\b/i,
+    no: /\b(no|nope|wrong|fix\w*|chang\w*|incorrect|not right|not quite|actually|mistakes?|typos?|edit|update)\b/i,
+    editAsk: "Sure. What needs changing?",
+    editPrompt: "Okay, what should the {label} be?",
+  },
+  summary: {
+    title: "Text to {business}",
+    subtitle: "{businessPhone} · from {receptionist}, {role}",
+    footer: "Taken by {receptionist} ({role})",
+  },
+  endScreen: {
+    title: "The crew's phone just buzzed",
+    lede: "Here's the summary {receptionist} sent from your call.",
+    note: "{receptionist} never quotes prices, diagnoses problems, promises times, or gives repair advice. The team follows up directly.",
+  },
+  timing: {
+    minTyping: 350,
+    perChar: 12,
+    maxTyping: 1100,
+    ringMs: 900,
+    endDelayMs: 1500,
+  },
+};
+
+/* =====================================================================
+   Engine — generic, driven entirely by CONFIG.
+   ===================================================================== */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    intro: $("intro"), call: $("call"), end: $("end"),
+    chat: $("chat"), chips: $("chips"), form: $("form"), input: $("input"), send: $("send"),
+    headSub: $("headSub"), liveDot: $("liveDot"), urgentPill: $("urgentPill"),
+    mic: $("mic"), voiceBtn: $("voiceBtn"),
+  };
+  // Each flow's question list, with shared steps ("name", { use: "address", … }) filled in.
+  const FLOW_STEPS = {};
+  Object.entries(CONFIG.flows).forEach(([id, f]) => {
+    FLOW_STEPS[id] = f.steps.map((st) => (typeof st === "string" ? CONFIG.sharedSteps[st]
+      : st.use ? Object.assign({}, CONFIG.sharedSteps[st.use], st) : st));
+  });
+  let FLOW = null, STEPS = [];
+  let scenario = CONFIG.scenarios[0];
+  function setFlow(id) { FLOW = CONFIG.flows[id]; STEPS = FLOW_STEPS[id]; S.flow = id; }
+  function routeFlow(text) {
+    const hit = (CONFIG.routing || []).find((rt) => rt.match.test(text));
+    return hit ? hit.flow : scenario.flow;
+  }
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const FAST = /[?&]fast\b/.test(location.search);   // ?fast skips typing delays (used by the test suite)
+
+  class Cancelled extends Error {}
+  let runId = 0;
+  let S;
+  let timer = null;
+
+  /* ---------- helpers ---------- */
+  const firstName = () => (S.answers.name || "").split(/\s+/)[0] || "";
+  function fill(tpl, extra = {}) {
+    const vars = {
+      business: CONFIG.business.shortName,
+      businessName: CONFIG.business.name,
+      businessPhone: CONFIG.business.phone,
+      possessive: CONFIG.business.possessive || CONFIG.business.shortName + "'s",
+      nextOpen: (typeof scenario !== "undefined" && scenario && scenario.nextOpen) || "",
+      appliance: S && S.answers.appliance ? S.answers.appliance.toLowerCase() : "",
+      receptionist: CONFIG.receptionist.name,
+      role: CONFIG.receptionist.role,
+      first: firstName(),
+      name: S ? S.answers.name || "" : "",
+      phone: S ? S.answers.phone || "" : "",
+      address: S ? S.answers.address || "" : "",
+      ...extra,
+    };
+    return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m))
+      .replace(/,\s*\./g, ".").replace(/\s+([.,])/g, "$1");   // tidy when {first} is empty
+  }
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, FAST ? 0 : reduceMotion ? Math.min(ms, 150) : ms));
+  async function wait(ms) { const id = runId; await sleep(ms); if (id !== runId) throw new Cancelled(); }
+  const capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const clip = (s, n = 300) => (s.length > n ? s.slice(0, n) + "…" : s);
+  const mmss = (ms) => { const t = Math.floor(ms / 1000); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
+  const stripHtml = (s) => String(s).replace(/<[^>]+>/g, "");
+
+  /* ---------- voice (Web Speech API, built into the browser) ---------- */
+  const V = CONFIG.voice || {};
+  const synth = "speechSynthesis" in window ? window.speechSynthesis : null;
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  let voiceOn = !!(synth && V.speak);
+  try { const saved = localStorage.getItem("receptionist-voice"); if (saved !== null && synth) voiceOn = saved === "1"; } catch (e) {}
+  let chosenVoice = null;
+  function pickVoice() {
+    if (!synth) return;
+    const voices = synth.getVoices();
+    if (!voices.length) return;
+    const lang = (V.lang || "en").toLowerCase();
+    for (const want of V.preferredVoices || []) {
+      const v = voices.find((x) => x.name.toLowerCase().includes(want.toLowerCase()) && x.lang.toLowerCase().startsWith("en"));
+      if (v) { chosenVoice = v; return; }
+    }
+    chosenVoice = voices.find((x) => x.lang.toLowerCase() === lang)
+      || voices.find((x) => x.lang.toLowerCase().startsWith(lang.slice(0, 2))) || null;
+  }
+  if (synth) { pickVoice(); synth.addEventListener?.("voiceschanged", pickVoice); }
+  // Browsers only allow speech after a user gesture, so the Call button primes the engine with a
+  // silent utterance; Ava's greeting can then speak after the ring.
+  function primeSpeech() {
+    if (!synth || !voiceOn) return;
+    try {
+      synth.cancel();
+      if (synth.resume) synth.resume();
+      pickVoice();
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      synth.speak(u);
+    } catch (e) {}
+  }
+  // Track the current line so a blocked or silent engine never stalls the call.
+  let speaking = null;
+  let speechBlocked = false;   // set when a line never starts; later lines don't wait until one plays
+  function speak(text) {
+    if (!synth || !voiceOn) return;
+    // Read phone numbers digit by digit, and don't spell out "AI".
+    const spoken = stripHtml(text)
+      .replace(/\((\d{3})\) (\d{3})-(\d{4})/g, (m, a, b, c) => [a, b, c].map((g) => g.split("").join(" ")).join(", "))
+      .replace(/\bURGENT\b/g, "urgent");
+    const u = new SpeechSynthesisUtterance(spoken);
+    if (chosenVoice) u.voice = chosenVoice;
+    u.lang = (chosenVoice && chosenVoice.lang) || V.lang || "en-CA";
+    u.rate = V.rate || 1; u.pitch = V.pitch || 1;
+    const state = speaking = { started: false, done: false, t0: Date.now(), budget: 2500 + spoken.length * 90 };
+    u.onstart = () => { state.started = true; speechBlocked = false; };
+    u.onend = u.onerror = () => { state.done = true; };
+    synth.speak(u);
+  }
+  function hush() { if (synth) synth.cancel(); if (speaking) speaking.done = true; }
+  async function untilQuiet(maxMs = 15000) {
+    if (!synth || !voiceOn || !speaking || speechBlocked) return;
+    const st = speaking;
+    while (!st.done) {
+      const age = Date.now() - st.t0;
+      if (!st.started && age > 1500) { speechBlocked = true; break; }   // blocked or no voices: stop waiting
+      if (age > Math.min(maxMs, st.budget)) break;   // never hang on an engine that forgets to finish
+      await wait(120);
+    }
+  }
+  function setVoice(on) {
+    voiceOn = on;
+    els.voiceBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    if (!on) hush();
+    try { localStorage.setItem("receptionist-voice", on ? "1" : "0"); } catch (e) {}
+  }
+
+  let rec = null, listening = false;
+  // Programmatic stop: discard whatever was heard. (Tapping the mic again calls rec.stop(), which submits.)
+  function stopListening() {
+    if (rec && listening) { rec.discard = true; try { rec.abort(); } catch (e) {} }
+    listening = false; els.mic.classList.remove("listening");
+  }
+  function startListening() {
+    if (!Recognition || listening) return;
+    hush();
+    const thisRec = rec = new Recognition();
+    rec.lang = V.lang || "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1; rec.continuous = false;
+    let finalText = "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript; else interim += e.results[i][0].transcript;
+      }
+      els.input.value = (finalText + interim).trim();
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        els.mic.hidden = true;
+        els.input.placeholder = "Microphone blocked. Type your reply instead…";
+      } else if (e.error === "no-speech") {
+        els.input.placeholder = "Didn't hear anything. Tap the mic or type…";
+      }
+    };
+    rec.onend = () => {
+      listening = false; els.mic.classList.remove("listening");
+      if (thisRec.discard) return;
+      const t = (finalText || els.input.value).trim();
+      if (t) handleInput(t);
+    };
+    try { rec.start(); listening = true; els.mic.classList.add("listening"); els.input.value = ""; } catch (e) { listening = false; }
+  }
+
+  /* ---------- rendering ---------- */
+  // One scroll per frame, after layout, instead of forcing a reflow on every message.
+  let scrollQueued = false;
+  function scrollDown() {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    requestAnimationFrame(() => { scrollQueued = false; els.chat.scrollTop = els.chat.scrollHeight; });
+  }
+  function addRow(who, node) {
+    const row = document.createElement("div");
+    row.className = "row " + who;
+    if (who === "agent") {
+      const mini = document.createElement("div");
+      mini.className = "mini"; mini.setAttribute("aria-hidden", "true");
+      mini.textContent = CONFIG.receptionist.name[0];
+      row.appendChild(mini);
+    }
+    row.appendChild(node);
+    els.chat.appendChild(row);
+    scrollDown();
+    return row;
+  }
+  function bubble(who, text, { html = false, cls = "" } = {}) {
+    const b = document.createElement("div");
+    b.className = "bubble " + cls;
+    if (html) b.innerHTML = text; else b.textContent = text;
+    S.log.push({ who, text: stripHtml(text) });
+    return addRow(who, b);
+  }
+  function sys(text) {
+    const d = document.createElement("div");
+    d.className = "sys"; d.textContent = text;
+    els.chat.appendChild(d); scrollDown();
+  }
+  async function say(text, opts = {}) {
+    await untilQuiet();
+    const typing = document.createElement("div");
+    typing.className = "bubble typing"; typing.setAttribute("aria-label", CONFIG.receptionist.name + " is typing");
+    typing.innerHTML = "<i></i><i></i><i></i>";
+    const row = addRow("agent", typing);
+    const plain = text.replace(/<[^>]+>/g, "");
+    const t = CONFIG.timing;
+    try { await wait(Math.min(t.maxTyping, t.minTyping + plain.length * t.perChar)); }
+    finally { row.remove(); }
+    bubble("agent", text, opts);
+    speak(text);
+  }
+
+  function setComposer(enabled, placeholder) {
+    els.input.disabled = !enabled; els.send.disabled = !enabled; els.mic.disabled = !enabled;
+    if (!enabled) stopListening();
+    els.input.placeholder = placeholder || "Type your reply…";
+    if (enabled && !("ontouchstart" in window)) els.input.focus();
+  }
+  function clearChips() { els.chips.innerHTML = ""; }
+  function renderChips(list) {
+    clearChips();
+    list.forEach((c) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = c.label;
+      b.addEventListener("click", () => handleInput(c.label, c));
+      els.chips.appendChild(b);
+    });
+  }
+  function renderStepChips(step) {
+    if (step.type === "choice") {
+      renderChips(step.options.map((o) => ({ label: o.label, option: o })));
+    } else if (step.type === "multi") {
+      clearChips();
+      const hinted = new Set([...(S.hints[step.key] || []), ...(S.soft[step.key] || [])]);
+      S.multiSel = new Set(step.options.filter((o) => hinted.has(optValue(o))));
+      const go = document.createElement("button");
+      go.type = "button"; go.className = "chip primary"; go.textContent = "Continue"; go.disabled = S.multiSel.size === 0;
+      const btns = step.options.map((o) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.textContent = o.label; b.setAttribute("aria-pressed", S.multiSel.has(o) ? "true" : "false");
+        b.addEventListener("click", () => {
+          if (S.multiSel.has(o)) S.multiSel.delete(o);
+          else {
+            if (o.none) S.multiSel.clear();
+            else step.options.filter((x) => x.none).forEach((x) => S.multiSel.delete(x));
+            S.multiSel.add(o);
+          }
+          btns.forEach((bb, i) => bb.setAttribute("aria-pressed", S.multiSel.has(step.options[i]) ? "true" : "false"));
+          go.disabled = S.multiSel.size === 0;
+        });
+        els.chips.appendChild(b);
+        return b;
+      });
+      go.addEventListener("click", () => {
+        const picked = step.options.filter((o) => S.multiSel.has(o));
+        handleInput(picked.map((o) => o.label).join(", "), { multi: picked });
+      });
+      els.chips.appendChild(go);
+      if (step.hint) { const h = document.createElement("p"); h.className = "chip-hint"; h.textContent = step.hint; els.chips.appendChild(h); }
+    } else {
+      const list = [];
+      if (step.optional && step.skipChip) list.push({ label: step.skipChip, skip: true });
+      const sample = scenario.samples && scenario.samples[step.key];
+      if (sample && !S.editing) list.push({ label: sample, sample: true });
+      if (list.length) renderChips(list); else clearChips();
+    }
+  }
+
+  /* ---------- parsing ---------- */
+  function matchGuardrails(text) { return CONFIG.guardrails.filter((g) => g.match.test(text) && !(g.unless && g.unless.test(text))); }
+
+  // Opt-in (CONFIG.questionsDontEscalate): split what the caller said into questions and
+  // statements. Questions get answered; only the statements can answer intake questions or
+  // change the call's priority. "How much does a new spring cost?" is all question, so the
+  // word "spring" in it can't flag anything. Requests phrased as questions ("Can you inspect
+  // the springs?") count as statements.
+  const Q_LEAD = /^(?:(?:hi|hey|hello|yes|yeah|yep|no|nope|ok|okay|so|um|uh|well|and|also|but|oh|sorry|quick question|one more thing|just wondering)\b[,\s]*)+/i;
+  const Q_START = /^(how|what|when|where|why|who|which|can|could|do|does|did|is|are|was|were|will|would|should|shall|may|might|have|has|any)(?![\w'’])/i;
+  const Q_WORD = /\b(how|what|when|where|why|who|which|can|could|do|does|did|is|are|will|would|should|much|long)\b/i;
+  const Q_REQUEST = /^(can|could|would|will) (you|someone|somebody|pete|he|they)( please)? (inspect|check|look|fix|repair|replace|service|tune|come|help|install|adjust|swap|change)\b/i;
+  function splitQuestion(text) {
+    const statements = [];
+    let hadQuestion = false;
+    for (const sentence of text.split(/(?<=[.?!])\s+/)) {
+      const endsQ = /\?\s*$/.test(sentence);
+      const clauses = sentence.split(/,\s*/);
+      let inQuestion = false;
+      clauses.forEach((clause, i) => {
+        const core = clause.replace(Q_LEAD, "").trim();
+        if (!core) { if (!inQuestion && clause.trim()) statements.push(clause.trim()); return; }   // "no", "yes": an answer
+        const asks = !Q_REQUEST.test(core) && (Q_START.test(core) || /\b(wondering|want(ed)? to know|curious)\b/i.test(core)
+          || (endsQ && i === clauses.length - 1 && Q_WORD.test(core) && !statements.length && clauses.length === 1));
+        if (asks) inQuestion = true;
+        // keep the caller's own words ("yes, my son's hand got caught"), not the stripped core
+        if (inQuestion) hadQuestion = true; else statements.push(clause.trim().replace(/\?\s*$/, ""));
+      });
+    }
+    return { statement: statements.join(", ").trim(), hadQuestion };
+  }
+  const optMatches = (o, text) => !!(o.match && o.match.test(text) && !(o.unless && o.unless.test(text)));
+  function bestOption(options, text) {
+    const hits = options.filter((o) => optMatches(o, text));
+    hits.sort((a, b) => (b.priority || 1) - (a.priority || 1));
+    return hits[0] || null;
+  }
+  const optValue = (o) => o.value || o.label;
+  const optDisplay = (o) => o.summary || o.label;
+
+  function parse(step, text, chip, guarded) {
+    const isQuestion = /\?\s*$/.test(text);
+    if (step.type === "choice") {
+      if (!chip && step.askOnConflict && step.options.filter((x) => optMatches(x, text)).length > 1) return { ok: false };
+      const o = chip && chip.option ? chip.option : bestOption(step.options, text);
+      if (o && o.other && o.followUp) return { followUp: o };
+      if (o) return { ok: true, raw: optValue(o), display: optDisplay(o) };
+      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: "Other", display: clip(capFirst(text)) };
+      return { ok: false };
+    }
+    if (step.type === "multi") {
+      let picked = chip && chip.multi ? chip.multi : step.options.filter((o) => optMatches(o, text));
+      if (!(chip && chip.multi) && S.hints[step.key]) {
+        step.options.forEach((o) => { if (S.hints[step.key].has(optValue(o)) && !picked.includes(o)) picked.push(o); });
+      }
+      if (picked.some((o) => !o.none)) picked = picked.filter((o) => !o.none);
+      if (picked.length) return { ok: true, raw: picked.map(optValue), display: picked.map(optDisplay).join(", ") };
+      if (step.freeform && !guarded && !isQuestion && text.length > 1) return { ok: true, raw: ["Other"], display: clip(capFirst(text)) };
+      return { ok: false };
+    }
+    if (step.type === "phone") {
+      const words = { zero: 0, oh: 0, o: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 };
+      let d = text.toLowerCase().replace(/\b(zero|oh|o|one|two|three|four|five|six|seven|eight|nine)\b/g, (w) => words[w]).replace(/\D/g, "");
+      if (d.length === 11 && d[0] === "1") d = d.slice(1);
+      if (d.length !== 10) return { ok: false };
+      const f = `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+      return { ok: true, raw: f, display: f };
+    }
+    // text
+    if (step.optional && ((chip && chip.skip) || (step.skip && step.skip.test(text)))) {
+      return { ok: true, raw: step.skipValue || "None", display: step.skipValue || "None" };
+    }
+    if (guarded || isQuestion) return { ok: false };
+    let v = text.replace(step.clean || /^$/, "").replace(/[.!]+$/, "").trim();
+    if (v.length < 2) return { ok: false };
+    if (step.key === "name" && v === v.toLowerCase()) v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+    v = capFirst(v);
+    v = v.replace(/(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g, "($1) $2-$3");
+    if (v.length > 300) v = v.slice(0, 300) + "…";
+    return { ok: true, raw: v, display: v };
+  }
+
+  /* ---------- urgency ---------- */
+  // A rule checks one answer (includes / equals / in / match) or several at once (all: [...]).
+  function ruleHits(r) {
+    if (r.all) return r.all.every(ruleHits);
+    const v = S.raw[r.key];
+    if (v == null) return false;
+    if (r.includes) return Array.isArray(v) ? v.includes(r.includes) : v === r.includes;
+    if (r.equals) return v === r.equals;
+    if (r.in) return (Array.isArray(v) ? v : [v]).some((x) => r.in.includes(x));
+    if (r.match) return r.match.test(String(S.answers[r.key] || v)) && !(r.unless && r.unless.test(String(S.answers[r.key] || v)));
+    return false;
+  }
+  function computeUrgent() {
+    const fromRules = (CONFIG.urgent.rules || []).filter(ruleHits).map((r) => r.reason);
+    return [...new Set([...(S.override ? [S.override] : []), ...fromRules, ...S.mentioned])];
+  }
+  // Optional middle tier (e.g. "PRIORITY"): flagged for the team, but not an emergency.
+  function computePriority() {
+    const P = CONFIG.priorityTier;
+    return P ? [...new Set(P.rules.filter(ruleHits).map((r) => r.reason))] : [];
+  }
+  function tier() { return S.urgentReasons.length ? "urgent" : S.priorityReasons.length ? "priority" : "normal"; }
+  // Value for the current tier from a { urgent, priority, normal } map (priority falls back to normal).
+  function pickTier(map) {
+    if (!map) return null;
+    const t = tier();
+    return map[t] != null ? map[t] : map.normal;
+  }
+  // Scan free text for urgent situations the caller mentions before being asked.
+  function detectFromSpeech(text) {
+    const answered = [];
+    (CONFIG.urgent.detect || []).forEach((d) => {
+      if (!d.match.test(text) || (d.unless && d.unless.test(text))) return;
+      if (d.answers) {
+        const step = STEPS.find((s) => s.key === d.answers.key);
+        const opt = step && (step.options || []).find((o) => optValue(o) === d.answers.value);
+        if (step && S.raw[step.key] == null) {
+          S.raw[step.key] = d.answers.value;
+          S.answers[step.key] = opt ? optDisplay(opt) : d.answers.value;
+          answered.push(step.key);
+        } else if (!step && !S.mentioned.includes(d.reason)) S.mentioned.push(d.reason);
+      } else if (!S.mentioned.includes(d.reason)) S.mentioned.push(d.reason);
+      if (d.preselect) (S.hints[d.preselect.key] = S.hints[d.preselect.key] || new Set()).add(d.preselect.value);
+    });
+    // Soft hints: tick options the caller already mentioned (chips only; never auto-added to typed answers).
+    STEPS.filter((s) => s.type === "multi" && s.preselectFromSpeech && S.raw[s.key] == null).forEach((s) => {
+      s.options.filter((o) => !o.none && optMatches(o, text)).forEach((o) => {
+        (S.soft[s.key] = S.soft[s.key] || new Set()).add(optValue(o));
+      });
+    });
+    return answered;
+  }
+  // Mention downed lines only if the caller said lines are down or isn't sure (or hasn't been asked yet
+  // and the flow has no power-lines question).
+  function linesInPlay() {
+    const w = FLOW.safety && FLOW.safety.linesWhen;
+    if (!w) return true;
+    const v = S.raw[w.key];
+    return v == null ? !STEPS.some((st) => st.key === w.key) || S.idx > STEPS.findIndex((st) => st.key === w.key) : w.values.includes(v);
+  }
+  function urgentMessage() {
+    const sf = CONFIG.urgent.callerSafety;
+    const linesKnown = S.raw.powerLines != null;
+    const safety = sf ? (linesKnown && linesInPlay() ? sf.lines : sf.tree) : "";
+    return fill(CONFIG.urgent.callerMessage + (safety ? " " + safety : ""));
+  }
+  function closingSafety() {
+    if (!FLOW.safety) return "";
+    return linesInPlay() ? FLOW.safety.lines : FLOW.safety.tree;
+  }
+  async function announceUrgentIfNew() {
+    if (refreshUrgent()) await say(urgentMessage(), { html: true, cls: "alert" });
+    await announcePriorityIfNew();
+  }
+  function nextUnanswered(i) {
+    while (i < STEPS.length && S.raw[STEPS[i].key] != null) i++;
+    return i;
+  }
+  function refreshUrgent() {
+    S.urgentReasons = computeUrgent();
+    S.priorityReasons = computePriority();
+    const t = tier();
+    els.urgentPill.hidden = t === "normal";
+    els.urgentPill.classList.toggle("priority", t === "priority");
+    const soLabel = S.override && CONFIG.safetyOverride && CONFIG.safetyOverride.headerBanner;   // e.g. CRITICAL
+    els.urgentPill.textContent = soLabel ? fill(soLabel) : t === "priority" ? fill(CONFIG.priorityTier.headerBanner || CONFIG.priorityTier.label)
+      : fill(CONFIG.urgent.banner || CONFIG.urgent.label);
+    const newly = S.urgentReasons.length > 0 && !S.urgentAnnounced;
+    if (newly) S.urgentAnnounced = true;
+    S.priorityNew = t === "priority" && !S.priorityAnnounced;
+    if (S.priorityNew) S.priorityAnnounced = true;
+    return newly;
+  }
+  async function announcePriorityIfNew() {
+    if (S.priorityNew) { S.priorityNew = false; await say(fill(CONFIG.priorityTier.callerMessage), { html: true, cls: "notice" }); }
+  }
+
+  /* ---------- summary ---------- */
+  function summaryRows() {
+    const so = S.override ? CONFIG.safetyOverride : null;   // a safety override may carry its own labels
+    if (FLOW.priority) S.answers.priority = (so && so.priority) || pickTier(FLOW.priority);
+    if (FLOW.nextStep) S.answers.nextStep = fill((so && so.nextStep) || pickTier(FLOW.nextStep));
+    return FLOW.fields
+      .filter((f) => f.key !== "area" || S.answers.area)
+      .map((f) => ({ key: f.key, label: f.label, value: S.answers[f.key] || (S.override && CONFIG.safetyOverride.missing) || "—" }));
+  }
+
+  // The in-chat read-back shows what the caller said; priority and next-step lines are for the team's text only.
+  const readBackRows = () => summaryRows().filter((r) => r.key !== "priority" && r.key !== "nextStep");
+
+  /* ---------- service area ---------- */
+  const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  function checkArea(addr) {
+    const A = CONFIG.serviceArea; if (!A) return { status: "in", town: "" };
+    const pc = addr.match(/\b([A-Z]\d[A-Z])\s?\d[A-Z]\d\b/i);
+    if (pc) {
+      const fsa = pc[1].toUpperCase();
+      return A.postalPrefixes.some((p) => fsa.startsWith(p.toUpperCase())) ? { status: "in", town: fsa } : { status: "out", town: "postal code " + fsa };
+    }
+    const place = A.places.find((p) => new RegExp("\\b" + reEsc(p) + "\\b", "i").test(addr));
+    if (place) return { status: "in", town: place };
+    const parts = addr.split(",").map((x) => x.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const town = parts.slice(1).map((x) => x.replace(/\b(ON|Ont\.?|Ontario|Canada)\b\.?/gi, "").trim()).filter((x) => x && !/^\d/.test(x))[0];
+      if (town) return { status: "out", town };
+    }
+    return { status: "unknown", town: "" };
+  }
+
+  /* ---------- flow ---------- */
+  async function askStep(step, override) {
+    S.phase = "step";
+    await say(fill(override || step.prompt));
+    renderStepChips(step);
+    setComposer(true, step.placeholder);
+  }
+
+  async function accept(step, r) {
+    S.raw[step.key] = r.raw;
+    S.answers[step.key] = r.display;
+    let areaOutside = false;
+    if (step.areaCheck && CONFIG.serviceArea) {
+      const a = checkArea(r.display);
+      if (a.status === "unknown" && !r.townAsked) {
+        S.phase = "areaTown"; S.pendingStep = step;
+        await say(fill(CONFIG.serviceArea.askTown));
+        renderChips(CONFIG.serviceArea.townChips.map((label) => ({ label })));
+        setComposer(true, "Town or city…");
+        return;
+      }
+      const t = a.town || "Unknown";
+      S.answers.area = fill(a.status === "in" ? CONFIG.serviceArea.insideLabel : CONFIG.serviceArea.outsideLabel, { town: t });
+      areaOutside = a.status !== "in";
+    }
+    const newly = refreshUrgent();
+    if (areaOutside) await say(fill(CONFIG.serviceArea.outside));
+    if (S.editing) {
+      S.editing = null;
+      if (newly) await say(urgentMessage(), { html: true, cls: "alert" });
+      await announcePriorityIfNew();
+      return goConfirm();
+    }
+    if (step.ack) await say(fill(step.ack));
+    if (newly) await say(urgentMessage(), { html: true, cls: "alert" });
+    await announcePriorityIfNew();
+    S.idx = nextUnanswered(S.idx + 1);
+    if (S.idx < STEPS.length) await askStep(STEPS[S.idx]);
+    else await goConfirm();
+  }
+
+  async function onGreeting(text, chip, guards) {
+    // Text questions can take their answer from the caller's first sentence ("my fridge stopped cooling").
+    STEPS.filter((st) => st.captureFromGreeting && S.raw[st.key] == null && !guards.length && st.captureFromGreeting.test(text))
+      .forEach((st) => { S.raw[st.key] = S.answers[st.key] = clip(capFirst(text)); });
+    const di = STEPS.findIndex((s) => s.detectFromGreeting);
+    const step = STEPS[di];
+    const o = step ? bestOption(step.options, text) : null;
+    if (o && !o.other) {
+      S.raw[step.key] = optValue(o); S.answers[step.key] = optDisplay(o);
+      const newlyUrgent = refreshUrgent();
+      await say(fill(FLOW.greetingReply.detected, { phrase: o.phrase || o.label.toLowerCase() }));
+      if (newlyUrgent) await say(urgentMessage(), { html: true, cls: "alert" });
+      await announcePriorityIfNew();
+      S.idx = nextUnanswered(di + 1);
+    } else {
+      // Re-check flags the first sentence may have set (e.g. a captured "it's leaking right now").
+      const heldUrgent = refreshUrgent();
+      await say(fill(guards.length || S.urgentAnnounced && !heldUrgent ? FLOW.greetingReply.afterGuardrail : FLOW.greetingReply.default));
+      if (heldUrgent) await say(urgentMessage(), { html: true, cls: "alert" });
+      await announcePriorityIfNew();
+      S.idx = nextUnanswered(0);
+    }
+    await askStep(STEPS[S.idx]);
+  }
+
+  async function onStep(text, chip, guards) {
+    const step = STEPS[S.idx];
+    if (!chip && S.justAnswered.includes(step.key)) return accept(step, { ok: true, raw: S.raw[step.key], display: S.answers[step.key] });
+    const r = parse(step, text, chip, guards.length > 0);
+    if (r.followUp) {
+      S.phase = "followUp"; S.pendingOption = r.followUp;
+      await say(fill(r.followUp.followUp));
+      clearChips(); setComposer(true, step.placeholder);
+      return;
+    }
+    if (!r.ok) {
+      // If a guardrail already answered, just re-ask the question; otherwise ask for clarification.
+      await say(fill(guards.length ? step.prompt : step.retry || step.prompt));
+      renderStepChips(step); setComposer(true, step.placeholder);
+      return;
+    }
+    await accept(step, r);
+  }
+
+  async function onFollowUp(text, chip, guards) {
+    const step = STEPS[S.idx];
+    if (guards.length || text.length < 2) {
+      await say(fill(S.pendingOption.followUp));
+      setComposer(true, step.placeholder);
+      return;
+    }
+    S.phase = "step";
+    await accept(step, { ok: true, raw: "Other", display: clip(capFirst(text)) });
+  }
+
+  async function onAreaTown(text, chip, guards) {
+    const step = S.pendingStep;
+    if (guards.length || text.length < 2 || /\?\s*$/.test(text)) {
+      await say(fill(CONFIG.serviceArea.askTown));
+      renderChips(CONFIG.serviceArea.townChips.map((label) => ({ label })));
+      setComposer(true, "Town or city…");
+      return;
+    }
+    S.phase = "step";
+    const town = clip(capFirst(text.replace(/^(it'?s|it is|in)\s+/i, "").replace(/[.!]+$/, "")), 60);
+    const addr = S.answers[step.key] + ", " + town;
+    await accept(step, { ok: true, raw: addr, display: addr, townAsked: true });
+  }
+
+  async function goConfirm() {
+    S.phase = "confirm";
+    await say(fill(CONFIG.confirm.intro));
+    await wait(250);
+    const card = document.createElement("div");
+    card.className = "bubble card";
+    const dl = document.createElement("dl");
+    if (S.urgentReasons.length) {
+      const f = document.createElement("div"); f.className = "flag";
+      f.textContent = CONFIG.urgent.label + ": " + reasonsText(S.urgentReasons, CONFIG.urgent);
+      dl.appendChild(f);
+    } else if (S.priorityReasons.length) {
+      const f = document.createElement("div"); f.className = "flag amber";
+      f.textContent = CONFIG.priorityTier.label + ": " + reasonsText(S.priorityReasons, CONFIG.priorityTier);
+      dl.appendChild(f);
+    }
+    readBackRows().forEach(({ label, value }) => {
+      const dt = document.createElement("dt"); dt.textContent = label;
+      const dd = document.createElement("dd"); dd.textContent = value;
+      dl.append(dt, dd);
+    });
+    card.appendChild(dl);
+    S.log.push({ who: "agent", text: "[Read back] " + readBackRows().map((x) => x.label + ": " + x.value).join("; ") });
+    addRow("agent", card);
+    speak(readBackRows().map((x) => x.label + ", " + x.value).join(". "));
+    await say(fill(CONFIG.confirm.question));
+    renderChips([{ label: CONFIG.confirm.yesLabel, yes: true }, { label: CONFIG.confirm.noLabel, no: true }]);
+    setComposer(true, "Yes, or tell me what to fix…");
+  }
+
+  function findStepMention(text) {
+    const t = text.toLowerCase();
+    const syn = {
+      backup: /\b(backup|back-up|someone else|other contact|emergency contact)\b/,
+      name: /\bname\b/, phone: /\b(number|phone|callback|cell)\b/, address: /\b(address|street|location|town|city|area)\b/,
+      incident: /\b(happened|what happened|incident|tree|limb)\b/, damage: /\b(damage|hit|house|car|power|lines?)\b/,
+      injuries: /\b(hurt|injur\w*)\b/,
+      bestTime: /\b(best time|time to call|mornings?|afternoons?|evenings?)\b/,
+      service: /\b(service|kind of work|type of work|pruning|removal)\b/,
+      details: /\b(details|description|how many)\b/,
+    };
+    // Most specific first, so "backup number" doesn't land on the callback number.
+    const order = ["backup", "bestTime", "service", "details", "injuries", "damage", "incident", "address", "phone", "name"];
+    const byLabel = STEPS.find((s) => t.includes(s.label.toLowerCase()));
+    const bySyn = order.map((k) => STEPS.find((s) => s.key === k)).find((s) => s && syn[s.key] && syn[s.key].test(t));
+    const byMatch = STEPS.find((s) => s.editMatch && s.editMatch.test(t));
+    return bySyn || byMatch || byLabel;
+  }
+
+  async function onConfirm(text, chip, guards) {
+    const c = CONFIG.confirm;
+    let yes = chip ? !!chip.yes : false, no = chip ? !!chip.no : false;
+    if (!chip) { no = c.no.test(text); yes = !no && c.yes.test(text); }
+    if (yes) return finish();
+    if (no) {
+      const direct = !chip && findStepMention(text);
+      if (direct) return startEdit(direct);
+      S.phase = "editPick";
+      await say(fill(c.editAsk));
+      renderChips(STEPS.map((s) => ({ label: s.label, step: s })));
+      setComposer(true, "Which detail?");
+      return;
+    }
+    await say(fill(c.question));
+    renderChips([{ label: c.yesLabel, yes: true }, { label: c.noLabel, no: true }]);
+    setComposer(true);
+  }
+
+  async function startEdit(step) {
+    S.editing = step.key;
+    S.idx = STEPS.indexOf(step);
+    const override = step.type === "text" || step.type === "phone"
+      ? fill(CONFIG.confirm.editPrompt, { label: step.label.toLowerCase() }) : step.prompt;
+    await askStep(step, override);
+  }
+
+  async function onEditPick(text, chip, guards) {
+    const step = (chip && chip.step) || findStepMention(text);
+    if (step) return startEdit(step);
+    await say(fill(CONFIG.confirm.editAsk));
+    renderChips(STEPS.map((s) => ({ label: s.label, step: s })));
+    setComposer(true, "Which detail?");
+  }
+
+  async function finish(closingOverride) {
+    S.phase = "done";
+    clearChips(); setComposer(false, "Call ended");
+    const closing = closingOverride || (tier() === "priority" && FLOW.closing.priority) || (S.urgentReasons.length ? FLOW.closing.urgent : FLOW.closing.normal);
+    await say(fill(closing, { safety: closingSafety() }).trim());
+    await untilQuiet(20000);
+    stopTimer();
+    sys("Call ended · " + mmss(Date.now() - S.start));
+    await wait(CONFIG.timing.endDelayMs);
+    showEnd();
+  }
+
+  // A safety override (CONFIG.safetyOverride) beats everything: the receptionist gives the safety
+  // instruction, flags the call URGENT and wraps up without asking anything else.
+  function safetyHit(text) {
+    const so = CONFIG.safetyOverride;
+    return !!(so && !S.override && so.match.test(text) && !(so.unless && so.unless.test(text)));
+  }
+  async function runSafetyOverride(text) {
+    const so = CONFIG.safetyOverride;
+    S.override = so.reason;
+    // keep whatever the caller just told us (e.g. which appliance)
+    STEPS.filter((st) => st.detectFromGreeting && S.raw[st.key] == null).forEach((st) => {
+      const o = bestOption(st.options, text);
+      if (o && !o.other) { S.raw[st.key] = optValue(o); S.answers[st.key] = optDisplay(o); }
+    });
+    STEPS.filter((st) => st.captureFromGreeting && S.raw[st.key] == null).forEach((st) => { S.raw[st.key] = S.answers[st.key] = clip(capFirst(text)); });
+    S.editing = null;
+    refreshUrgent(); S.priorityNew = false;
+    await say(fill(so.message), { html: true, cls: "alert" });
+    await finish(so.closing);
+  }
+
+  async function handleInput(text, chip = null) {
+    text = String(text || "").trim();
+    if (S.busy || !text || S.phase === "done" || S.phase === "intro") return;
+    const st = S;
+    st.busy = true;
+    hush(); stopListening();
+    clearChips(); setComposer(false); els.input.value = "";
+    bubble("caller", text);
+    try {
+      if (safetyHit(text)) return await runSafetyOverride(text);
+      let guards = matchGuardrails(text);
+      // Questions are answered first; only statement text moves the intake or the priority.
+      const intake = ["greeting", "step", "followUp"].includes(S.phase);
+      let said = text;
+      if (CONFIG.questionsDontEscalate && intake && !chip) {
+        const q = splitQuestion(text);
+        said = q.statement;
+        if (q.hadQuestion && !guards.length && !said && CONFIG.questionFallback) guards = [{ id: "question", reply: CONFIG.questionFallback }];
+      }
+      for (const g of guards) await say(fill(g.reply));
+      S.justAnswered = [];
+      if (S.phase === "greeting") setFlow(routeFlow(said || text));
+      if (intake && !S.editing && !(chip && (chip.option || chip.multi)) && said) {
+        S.justAnswered = detectFromSpeech(said);
+        if (!(S.phase === "greeting" && CONFIG.urgent.announceAfterGreeting)) await announceUrgentIfNew();
+      }
+      const handlers = { greeting: onGreeting, step: onStep, followUp: onFollowUp, areaTown: onAreaTown, confirm: onConfirm, editPick: onEditPick };
+      await handlers[S.phase](intake ? said : text, chip, guards);
+    } catch (e) {
+      if (!(e instanceof Cancelled)) throw e;
+    } finally {
+      st.busy = false;
+    }
+  }
+
+  /* ---------- screens ---------- */
+  function startTimer() {
+    stopTimer();
+    const tick = () => { els.headSub.textContent = CONFIG.business.shortName + " · " + mmss(Date.now() - S.start); };
+    tick(); timer = setInterval(tick, 1000);
+  }
+  // "Start over" goes back to the scenario picker.
+  function goToIntro() {
+    ++runId;
+    hush(); stopListening(); stopTimer();
+    reset();
+    els.call.hidden = true; els.end.hidden = true; els.intro.hidden = false;
+    els.chat.innerHTML = ""; clearChips(); setComposer(false);
+    const sel = document.querySelector('.pick[aria-checked="true"]');
+    if (sel) sel.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+
+  function stopTimer() { if (timer) clearInterval(timer); timer = null; els.liveDot.classList.add("off"); }
+
+  async function startCall() {
+    const id = ++runId;
+    hush(); stopListening();
+    reset();
+    setFlow(scenario.flow);
+    els.intro.hidden = true; els.end.hidden = true; els.call.hidden = false;
+    els.chat.innerHTML = ""; clearChips(); setComposer(false);
+    els.liveDot.classList.add("off");
+    els.headSub.textContent = "Calling " + CONFIG.business.phone + "…";
+    sys("Calling " + CONFIG.business.shortName + "…");
+    try {
+      await wait(CONFIG.timing.ringMs);
+      if (id !== runId) return;
+      S.start = Date.now(); els.liveDot.classList.remove("off"); startTimer();
+      sys("Connected");
+      S.phase = "greeting";
+      S.busy = true;
+      await say(fill(scenario.greeting));
+      S.busy = false;
+      renderChips(scenario.suggestions.map((label) => ({ label })));
+      setComposer(true, fill("Tell {receptionist} what's going on…"));
+    } catch (e) { if (!(e instanceof Cancelled)) throw e; }
+  }
+
+  // Reasons for a banner: "Broken spring, car trapped" when the tier sets reasonsSentenceCase.
+  function reasonsText(list, cfg) {
+    return cfg && cfg.reasonsSentenceCase
+      ? list.map((r, i) => (i ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join(", ")
+      : list.join(", ");
+  }
+  function summaryHeading() {
+    return fill(FLOW.heading);
+  }
+  function summaryText() {
+    const lines = [];
+    if (S.override && CONFIG.safetyOverride.smsBanner) lines.push(fill(CONFIG.safetyOverride.smsBanner), "");
+    else if (S.urgentReasons.length) lines.push(CONFIG.urgent.smsBanner ? fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }) : CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
+    else if (S.priorityReasons.length) lines.push(fill(CONFIG.priorityTier.smsBanner, { reasons: reasonsText(S.priorityReasons, CONFIG.priorityTier) }), "");
+    lines.push(summaryHeading());
+    summaryRows().forEach(({ label, value }) => lines.push(label + ": " + value));
+    lines.push("", fill(CONFIG.summary.footer));
+    return lines.join("\n");
+  }
+  async function copySummary() {
+    const btn = $("copyBtn"), text = summaryText();
+    let ok = false;
+    try {
+      // Some browsers leave the clipboard promise pending (e.g. pages opened from disk); don't hang on it.
+      await Promise.race([navigator.clipboard.writeText(text), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 1200))]);
+      ok = true;
+    } catch (e) {
+      const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch (e2) {}
+      ta.remove();
+    }
+    btn.textContent = ok ? "Copied" : "Couldn't copy";
+    setTimeout(() => { btn.textContent = "Copy summary"; }, 1800);
+  }
+  function renderTranscript() {
+    const box = $("transcript"); box.innerHTML = "";
+    S.log.forEach(({ who, text }) => {
+      const p = document.createElement("p");
+      const b = document.createElement("b");
+      b.textContent = (who === "agent" ? CONFIG.receptionist.name : "Caller") + ": ";
+      p.append(b, document.createTextNode(text));
+      box.appendChild(p);
+    });
+  }
+
+  function showEnd() {
+    renderTranscript();
+    els.call.hidden = true; els.end.hidden = false;
+    // The scenario sets the day and time shown on the text (e.g. the storm call lands on Sunday morning).
+    const clock = scenario.clock || { day: "Today", time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) };
+    $("smsClock").textContent = clock.time.replace(/\s?[AP]M$/i, "");
+    $("smsStamp").textContent = clock.day + " " + clock.time;
+    $("smsAvatar").textContent = CONFIG.business.initials;
+    $("smsTitle").textContent = fill(CONFIG.summary.title);
+    $("smsSub").textContent = fill(CONFIG.summary.subtitle);
+    const body = $("smsBody");
+    const t = tier();
+    body.className = "sms " + (t === "urgent" ? "sms-urgent" : t === "priority" ? "sms-priority" : FLOW.banner ? "sms-storm" : "sms-plain");
+    let html = "";
+    if (S.override && CONFIG.safetyOverride.smsBanner) {
+      html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.safetyOverride.smsBanner))}</div>`;
+    } else if (t === "urgent" && CONFIG.urgent.smsBanner) {
+      html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }))}</div>`;
+    } else if (t === "urgent") {
+      html += `<div class="sms-banner urgent">${escapeHtml(CONFIG.urgent.label)}</div><div class="sms-reasons">${escapeHtml(S.urgentReasons.join(" · "))}</div>`;
+    } else if (t === "priority") {
+      html += `<div class="sms-banner priority">${escapeHtml(fill(CONFIG.priorityTier.smsBanner, { reasons: reasonsText(S.priorityReasons, CONFIG.priorityTier) }))}</div>`;
+    } else if (FLOW.banner) {
+      html += `<div class="sms-banner storm">${escapeHtml(FLOW.banner)}</div>`;
+    }
+    html += `<b>${escapeHtml(summaryHeading())}</b>\n`;
+    const keepPhone = (h) => h.replace(/\(\d{3}\) \d{3}-\d{4}/g, (m) => `<span class="nowrap">${m}</span>`);
+    html += summaryRows().map(({ label, value }) => `${escapeHtml(label)}: ${keepPhone(escapeHtml(value))}`).join("\n");
+    html += `\n\n${escapeHtml(fill(CONFIG.summary.footer))}`;
+    body.innerHTML = html;
+    els.end.scrollTop = 0;
+    // Focus the heading (announced by screen readers), not Start over, so a stray Enter
+    // from the last answer can't skip the text the caller just reached.
+    $("endTitle").focus({ preventScroll: true });
+  }
+
+  function reset() {
+    S = { phase: "intro", idx: 0, answers: {}, raw: {}, urgentReasons: [], urgentAnnounced: false,
+          busy: false, editing: null, pendingOption: null, multiSel: new Set(), start: Date.now(),
+          mentioned: [], justAnswered: [], hints: {}, soft: {}, log: [], pendingStep: null, flow: null,
+          priorityReasons: [], priorityAnnounced: false, priorityNew: false, override: null };
+    els.urgentPill.hidden = true;
+    els.urgentPill.classList.remove("priority");
+  }
+
+  /* ---------- boot ---------- */
+  Object.entries(CONFIG.theme || {}).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+  document.title = CONFIG.business.shortName + " · " + CONFIG.receptionist.name;
+  reset();
+  $("introLogo").textContent = CONFIG.business.initials;
+  $("introName").textContent = CONFIG.business.name;
+  $("introWhere").textContent = CONFIG.intro.where ? fill(CONFIG.intro.where)
+    : CONFIG.business.tagline + "\n" + CONFIG.business.address + " · Serving " + CONFIG.business.serviceArea;
+  $("introScenario").textContent = fill(CONFIG.intro.pitch);
+  $("pickLabel").textContent = fill(CONFIG.intro.pickLabel);
+  $("picker").setAttribute("aria-label", fill(CONFIG.intro.pickLabel));
+  const pickBtns = CONFIG.scenarios.map((sc) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pick"; b.setAttribute("role", "radio");
+    b.innerHTML = '<span class="w"></span><span class="t"></span><span class="b"></span>';
+    b.querySelector(".w").textContent = sc.when;
+    b.querySelector(".t").textContent = sc.title;
+    b.querySelector(".b").textContent = sc.blurb;
+    b.addEventListener("click", () => chooseScenario(sc));
+    $("picker").appendChild(b);
+    return b;
+  });
+  function chooseScenario(sc) {
+    scenario = sc;
+    pickBtns.forEach((b, i) => b.setAttribute("aria-checked", CONFIG.scenarios[i] === sc ? "true" : "false"));
+  }
+  chooseScenario(scenario);
+  $("callBtnLabel").textContent = fill(CONFIG.intro.callLabel);
+  $("headAvatar").textContent = CONFIG.receptionist.name[0];
+  $("headName").textContent = CONFIG.receptionist.name + " · " + CONFIG.receptionist.role;
+  $("urgentPill").textContent = fill(CONFIG.urgent.banner || CONFIG.urgent.label);
+  if (CONFIG.intro.footer) document.querySelector(".fineprint").textContent = fill(CONFIG.intro.footer);
+  if (CONFIG.endScreen.title) $("endTitle").textContent = fill(CONFIG.endScreen.title);
+  $("endLede").textContent = fill(CONFIG.endScreen.lede);
+  $("endNote").textContent = fill(CONFIG.endScreen.note);
+
+  if (FAST) window.__receptionist = { state: () => S, config: CONFIG, steps: () => STEPS, scenario: () => scenario.id, checkArea };
+
+  $("callBtn").addEventListener("click", () => { primeSpeech(); startCall(); });
+  $("restartTop").addEventListener("click", goToIntro);
+  $("restartEnd").addEventListener("click", goToIntro);
+  $("copyBtn").addEventListener("click", copySummary);
+  if (synth) {
+    els.voiceBtn.hidden = false;
+    setVoice(voiceOn);
+    els.voiceBtn.addEventListener("click", () => setVoice(!voiceOn));
+  }
+  if (Recognition && V.listen) {
+    els.mic.hidden = false;
+    els.mic.addEventListener("click", () => { if (listening) { try { rec.stop(); } catch (e) {} } else startListening(); });
+  }
+  els.form.addEventListener("submit", (e) => { e.preventDefault(); handleInput(els.input.value); });
+})();
+</script>
+</body>
+</html>

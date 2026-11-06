@@ -1100,7 +1100,8 @@ const CONFIG = {
     const t = tier();
     els.urgentPill.hidden = t === "normal";
     els.urgentPill.classList.toggle("priority", t === "priority");
-    els.urgentPill.textContent = t === "priority" ? fill(CONFIG.priorityTier.headerBanner || CONFIG.priorityTier.label)
+    const soLabel = S.override && CONFIG.safetyOverride && CONFIG.safetyOverride.headerBanner;   // e.g. CRITICAL
+    els.urgentPill.textContent = soLabel ? fill(soLabel) : t === "priority" ? fill(CONFIG.priorityTier.headerBanner || CONFIG.priorityTier.label)
       : fill(CONFIG.urgent.banner || CONFIG.urgent.label);
     const newly = S.urgentReasons.length > 0 && !S.urgentAnnounced;
     if (newly) S.urgentAnnounced = true;
@@ -1114,8 +1115,9 @@ const CONFIG = {
 
   /* ---------- summary ---------- */
   function summaryRows() {
-    if (FLOW.priority) S.answers.priority = pickTier(FLOW.priority);
-    if (FLOW.nextStep) S.answers.nextStep = fill(pickTier(FLOW.nextStep));
+    const so = S.override ? CONFIG.safetyOverride : null;   // a safety override may carry its own labels
+    if (FLOW.priority) S.answers.priority = (so && so.priority) || pickTier(FLOW.priority);
+    if (FLOW.nextStep) S.answers.nextStep = fill((so && so.nextStep) || pickTier(FLOW.nextStep));
     return FLOW.fields
       .filter((f) => f.key !== "area" || S.answers.area)
       .map((f) => ({ key: f.key, label: f.label, value: S.answers[f.key] || (S.override && CONFIG.safetyOverride.missing) || "—" }));
@@ -1199,9 +1201,11 @@ const CONFIG = {
       await announcePriorityIfNew();
       S.idx = nextUnanswered(di + 1);
     } else {
-      const heldUrgent = CONFIG.urgent.announceAfterGreeting && refreshUrgent();
+      // Re-check flags the first sentence may have set (e.g. a captured "it's leaking right now").
+      const heldUrgent = refreshUrgent();
       await say(fill(guards.length || S.urgentAnnounced && !heldUrgent ? FLOW.greetingReply.afterGuardrail : FLOW.greetingReply.default));
       if (heldUrgent) await say(urgentMessage(), { html: true, cls: "alert" });
+      await announcePriorityIfNew();
       S.idx = nextUnanswered(0);
     }
     await askStep(STEPS[S.idx]);
@@ -1458,7 +1462,8 @@ const CONFIG = {
   }
   function summaryText() {
     const lines = [];
-    if (S.urgentReasons.length) lines.push(CONFIG.urgent.smsBanner ? fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }) : CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
+    if (S.override && CONFIG.safetyOverride.smsBanner) lines.push(fill(CONFIG.safetyOverride.smsBanner), "");
+    else if (S.urgentReasons.length) lines.push(CONFIG.urgent.smsBanner ? fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }) : CONFIG.urgent.label + ": " + S.urgentReasons.join(" · "), "");
     else if (S.priorityReasons.length) lines.push(fill(CONFIG.priorityTier.smsBanner, { reasons: reasonsText(S.priorityReasons, CONFIG.priorityTier) }), "");
     lines.push(summaryHeading());
     summaryRows().forEach(({ label, value }) => lines.push(label + ": " + value));
@@ -1506,7 +1511,9 @@ const CONFIG = {
     const t = tier();
     body.className = "sms " + (t === "urgent" ? "sms-urgent" : t === "priority" ? "sms-priority" : FLOW.banner ? "sms-storm" : "sms-plain");
     let html = "";
-    if (t === "urgent" && CONFIG.urgent.smsBanner) {
+    if (S.override && CONFIG.safetyOverride.smsBanner) {
+      html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.safetyOverride.smsBanner))}</div>`;
+    } else if (t === "urgent" && CONFIG.urgent.smsBanner) {
       html += `<div class="sms-banner urgent">${escapeHtml(fill(CONFIG.urgent.smsBanner, { reasons: reasonsText(S.urgentReasons, CONFIG.urgent) }))}</div>`;
     } else if (t === "urgent") {
       html += `<div class="sms-banner urgent">${escapeHtml(CONFIG.urgent.label)}</div><div class="sms-reasons">${escapeHtml(S.urgentReasons.join(" · "))}</div>`;
