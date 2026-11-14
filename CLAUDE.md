@@ -37,6 +37,11 @@ npm run serve                  # build the bundle and serve it locally
 Copy an existing client folder, edit only `CONFIG` and the title, add the link to README's
 table, run its tests, and look at it in a real browser at phone width before calling it done.
 
+## Browser tools
+`.mcp.json` adds the Playwright MCP (open, click, screenshot) and Chrome DevTools MCP
+(console, network, performance traces) servers. Use them to look at a UI change in a real
+browser before calling it done.
+
 ## Helpful skills
 `make-interfaces-feel-better`, `web-design-guidelines` and `design:ux-copy` for UI and
 wording; `audit-as-a11y-eng` for accessibility; small-business `lead-finder`,
