@@ -26,20 +26,21 @@ apps/coinhold/
   _headers            Security headers for Cloudflare Pages / Netlify
   SECURITY.md         Threat model and the controls that answer it
   tests/
-    coinhold.test.js  56 end-to-end checks (Playwright + axe-core)
+    coinhold.test.js  65 end-to-end checks (Playwright + axe-core)
     serve.js          Local server that sends the same headers as _headers
     bundle-single.js  Inlines CSS/JS into dist/coinhold.html for single-file hosts
 ```
 
 `app.js` sections, top to bottom: constants, input sanitising, storage and encryption, sample
 data, derived numbers, quests, actions, feedback (toasts, coins, modals), the five views
-(Kingdom, Money map, Quests, Advisor, Ledger), router and event delegation.
+(Kingdom, Realm, Money map, Quests, Advisor, Ledger), router and event delegation.
 
 ## What's in the game
 
 | Area | Mechanics |
 | --- | --- |
 | Kingdom | Live castle scene: walls grow at 1/3/6 months of essentials saved, towers with level, orchard with investments, one animated dragon per debt (colour = interest rate, fire at 15%+). |
+| Realm | The empire view. A resource bar (gold in, upkeep, tribute to debt, treasury, surplus); trade routes, a flow chart from every income stream to bills, living costs, business costs, debt, savings and what's left; a building per income stream (Guild Hall = job, Market = business with profit and margin, Workshop = side gigs, Gold Mine = investments and rent, Trading Post = other) that levels up with monthly income; regular bills found automatically with due dates and paid status; credit cards with how much of each limit is used; loans with payoff time. |
 | Dragons | Pay minimum (+10 XP) or Extra attack (+1 XP per $10). HP bar = balance vs. starting balance. |
 | Quests | Castle Walls I-III, First Blood, Sharpened Blade, Royal Audit, monthly Quiet Purse / Pay Your Future Self / Steady Upkeep, streak and habit quests. Claim for XP; trophies in the hall. |
 | Check-in | Once a week: XP for showing up, for categories on pace, and a streak bonus. A shield every 4 weeks covers one missed week. |

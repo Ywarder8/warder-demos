@@ -36,7 +36,7 @@ const check = (ok, name, detail = '') => { if (ok) { passed++; console.log('  ok
 
   console.log('Views');
   const p = await newPage();
-  for (const v of ['kingdom', 'money-map', 'quests', 'advisor', 'ledger']) {
+  for (const v of ['kingdom', 'realm', 'money-map', 'quests', 'advisor', 'ledger']) {
     await go(p, v);
     check(await p.locator(`nav.tabs a[href="#${v}"][aria-current="page"]`).count() === 1, `${v}: tab marked current`);
     check((await p.locator('#view').innerText()).length > 200, `${v}: content rendered`);
@@ -46,6 +46,12 @@ const check = (ok, name, detail = '') => { if (ok) { passed++; console.log('  ok
   check(await p.locator('#bars svg path').count() >= 12, 'money map: income/spending bars drawn');
   check(await p.locator('svg[data-cross="nw"] polyline').count() === 1, 'money map: net worth line drawn');
 
+  await go(p, 'realm');
+  check(await p.locator('#sankey svg .rib').count() >= 8, 'realm: trade routes link income streams to where money goes');
+  check(await p.locator('.holding:not(.empty-h)').count() >= 3, 'realm: job, business and side-gig buildings are built');
+  check((await p.locator('.holding', { hasText: 'Market' }).innerText()).includes('Profit a month'), 'realm: business shows profit after costs');
+  check(await p.locator('.panel', { hasText: 'Upkeep' }).locator('tbody tr').count() >= 8, 'realm: regular bills detected');
+  check((await p.locator('.credit').first().innerText()).includes('% used'), 'realm: credit card utilization shown');
   console.log('Game loop');
   await go(p, 'kingdom');
   const debtBefore = await p.locator('.stat .v').nth(3).innerText();
@@ -91,7 +97,7 @@ const check = (ok, name, detail = '') => { if (ok) { passed++; console.log('  ok
   await p.click('#restore');
   await p.fill('#restoretext', '{"__proto__":{"polluted":1},"txns":[{"id":"zz","date":"2026-11-02","desc":"<script>window.__pwned=2</script>","amount":-5,"cat":"fun"},{"date":"x","cat":"constructor"}],"debts":[{"name":"\\"><svg onload=window.__pwned=3>","balance":1e99,"apr":-5,"min":5}],"xp":"lots","budgets":{"home":"abc"}}');
   await p.click('#restorego'); await p.waitForTimeout(200);
-  for (const v of ['kingdom', 'money-map', 'quests', 'advisor', 'ledger']) { await go(p, v); await p.mouse.move(700, 450); }
+  for (const v of ['kingdom', 'realm', 'money-map', 'quests', 'advisor', 'ledger']) { await go(p, v); await p.mouse.move(700, 450); }
   await go(p, 'kingdom'); await p.hover('.dragon-g').catch(() => {});
   check(await p.evaluate(() => !window.__pwned), 'no injected script ran (XSS payloads stay text)');
   check(await p.evaluate(() => ({}).polluted === undefined), 'restoring a backup cannot pollute Object.prototype');
@@ -128,7 +134,7 @@ const check = (ok, name, detail = '') => { if (ok) { passed++; console.log('  ok
 
   console.log('Accessibility, layout and speed');
   const fresh = await newPage();
-  for (const v of ['kingdom', 'money-map', 'quests', 'advisor', 'ledger']) {
+  for (const v of ['kingdom', 'realm', 'money-map', 'quests', 'advisor', 'ledger']) {
     await go(fresh, v);
     await fresh.addScriptTag({ path: AXE }).catch(async () => { await fresh.evaluate(require('fs').readFileSync(AXE, 'utf8')); });
     const r = await fresh.evaluate(() => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa'] }));
@@ -158,7 +164,7 @@ const check = (ok, name, detail = '') => { if (ok) { passed++; console.log('  ok
   check(big < 1500, `importing 3,000 transactions takes under 1.5s (${big.toFixed(0)}ms)`);
 
   const phone = await newPage({ viewport: { width: 375, height: 740 }, colorScheme: 'dark' });
-  for (const v of ['kingdom', 'money-map', 'quests', 'advisor', 'ledger']) {
+  for (const v of ['kingdom', 'realm', 'money-map', 'quests', 'advisor', 'ledger']) {
     await go(phone, v);
     check(!(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), `${v}: no sideways scrolling on a phone (dark mode)`);
   }

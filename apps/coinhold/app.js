@@ -6,8 +6,20 @@ const CATS = {
   home: { name: 'Home & bills', slot: 1 }, dining: { name: 'Dining out', slot: 2 }, groceries: { name: 'Groceries', slot: 3 },
   transport: { name: 'Transport', slot: 4 }, shopping: { name: 'Shopping', slot: 5 }, health: { name: 'Health & other', slot: 6 },
   subs: { name: 'Subscriptions', slot: 7 }, fun: { name: 'Fun', slot: 8 },
-  debt: { name: 'Debt payments' }, save: { name: 'Savings & investing' }, income: { name: 'Income' }
+  debt: { name: 'Debt payments' }, save: { name: 'Savings & investing' }, bizcost: { name: 'Business costs' },
+  job: { name: 'Job / paycheck', inc: 1 }, business: { name: 'Business income', inc: 1 }, side: { name: 'Side gigs', inc: 1 },
+  passive: { name: 'Investments & rent', inc: 1 }, otherinc: { name: 'Other income', inc: 1 }
 };
+const INCOME = ['job', 'business', 'side', 'passive', 'otherinc'];
+// Each income stream is a building in the realm. Colours come from the categorical palette, in order.
+const STREAMS = {
+  job: { building: 'Guild Hall', color: 'var(--s1)', blurb: 'Steady wages from your work' },
+  business: { building: 'Market', color: 'var(--s3)', blurb: 'Your business: revenue minus its costs' },
+  side: { building: 'Workshop', color: 'var(--s4)', blurb: 'Freelance and gig work' },
+  passive: { building: 'Gold Mine', color: 'var(--s7)', blurb: 'Dividends, interest and rent' },
+  otherinc: { building: 'Trading Post', color: 'var(--s5)', blurb: 'Gifts, refunds and everything else' }
+};
+const DEBT_KINDS = { card: 'Credit card', loan: 'Loan', other: 'Other debt' };
 const SPEND = ['home', 'dining', 'groceries', 'transport', 'shopping', 'health', 'subs', 'fun'];
 const ESSENTIAL = ['home', 'groceries', 'transport', 'health'];
 const DISCRETIONARY = ['dining', 'shopping', 'fun'];
@@ -68,12 +80,12 @@ function sanitizeState(o) {
   const out = emptyState();
   out.sample = o.sample === true;
   const id = v => (typeof v === 'string' && ID_RE.test(v)) ? v : uid();
-  if (Array.isArray(o.txns)) out.txns = o.txns.slice(0, MAX_TXNS).filter(t => t && typeof t.date === 'string' && DATE_RE.test(t.date) && CATS[t.cat] && Object.hasOwn(CATS, t.cat))
+  if (Array.isArray(o.txns)) out.txns = o.txns.slice(0, MAX_TXNS).map(t => (t && t.cat === 'income') ? { ...t, cat: 'job' } : t).filter(t => t && typeof t.date === 'string' && DATE_RE.test(t.date) && CATS[t.cat] && Object.hasOwn(CATS, t.cat))
     .map(t => ({ id: id(t.id), date: t.date, desc: cleanText(t.desc, 'Transaction'), amount: round2(clampNum(t.amount, -MAX_AMT, MAX_AMT)), cat: t.cat, ...(t.extra === true ? { extra: true } : {}) }));
   if (Array.isArray(o.accounts)) out.accounts = o.accounts.slice(0, 50).filter(a => a && typeof a === 'object')
     .map(a => ({ id: id(a.id), name: cleanText(a.name, 'Account'), kind: a.kind === 'invest' ? 'invest' : 'emergency', balance: round2(clampNum(a.balance, -MAX_AMT, MAX_AMT)) }));
   if (Array.isArray(o.debts)) out.debts = o.debts.slice(0, 50).filter(d => d && typeof d === 'object')
-    .map(d => { const b = round2(clampNum(d.balance, 0, MAX_AMT)); return { id: id(d.id), name: cleanText(d.name, 'Debt'), balance: b, start: Math.max(b, round2(clampNum(d.start, 0, MAX_AMT))), apr: clampNum(d.apr, 0, 100), min: clampNum(d.min, 0, MAX_AMT) }; });
+    .map(d => { const b = round2(clampNum(d.balance, 0, MAX_AMT)); return { id: id(d.id), name: cleanText(d.name, 'Debt'), kind: Object.hasOwn(DEBT_KINDS, d.kind) ? d.kind : (/card/i.test(String(d.name)) ? 'card' : 'loan'), limit: round2(clampNum(d.limit, 0, MAX_AMT)), balance: b, start: Math.max(b, round2(clampNum(d.start, 0, MAX_AMT))), apr: clampNum(d.apr, 0, 100), min: clampNum(d.min, 0, MAX_AMT) }; });
   if (Array.isArray(o.history)) out.history = o.history.slice(-240).filter(h => h && /^\d{4}-\d{2}$/.test(h.month)).map(h => ({ month: h.month, nw: Math.round(clampNum(h.nw, -1e9, 1e9)) }));
   if (o.budgets && typeof o.budgets === 'object') SPEND.forEach(c => out.budgets[c] = clampNum(o.budgets[c], 0, MAX_AMT));
   out.xp = Math.round(clampNum(o.xp, 0, 1e7));
@@ -166,8 +178,12 @@ function sampleState() {
   };
   months.forEach((m, i) => {
     add(m, 1, 'Rent', -1450, 'home'); add(m, 1, 'Iron Gym membership', -45, 'subs');
-    add(m, 3, 'Paycheck', 2100, 'income'); add(m, 17, 'Paycheck', 2100, 'income');
-    if (i % 2 === 1) add(m, 24, 'Freelance design job', 180 + Math.round(r() * 220), 'income');
+    add(m, 3, 'Paycheck', 2100, 'job'); add(m, 17, 'Paycheck', 2100, 'job');
+    if (i % 2 === 1) add(m, 24, 'Freelance design job', 180 + Math.round(r() * 220), 'side');
+    [6, 14, 27].forEach(d => add(m, d, 'Etsy shop sales', 160 + Math.round(r() * 180), 'business'));
+    add(m, 9, 'Craft supplies', -(70 + r() * 60), 'bizcost'); add(m, 28, 'Etsy fees', -(28 + r() * 14), 'bizcost');
+    if (i % 3 === 2) add(m, 15, 'Dividend payout', 42, 'passive');
+    add(m, 19, 'Store card payment', -35, 'debt');
     add(m, 4, 'Transfer to emergency fund', -200, 'save'); add(m, 18, 'Brokerage deposit', -150, 'save');
     add(m, 5, 'Car insurance', -128, 'transport');
     add(m, 6, 'Netflix', -15.49, 'subs'); add(m, 11, 'Spotify', -11.99, 'subs'); add(m, 14, 'Cloud storage', -2.99, 'subs'); add(m, 22, 'StreamMax', -12.99, 'subs');
@@ -186,11 +202,12 @@ function sampleState() {
     { id: uid(), name: 'Brokerage account', kind: 'invest', balance: 5400 }
   ];
   const debts = [
-    { id: uid(), name: 'Credit card', balance: 3400, start: 4800, apr: 24.9, min: 95 },
-    { id: uid(), name: 'Car loan', balance: 9800, start: 12500, apr: 6.5, min: 310 },
-    { id: uid(), name: 'Student loan', balance: 14200, start: 15800, apr: 5.0, min: 160 }
+    { id: uid(), name: 'Credit card', kind: 'card', limit: 8000, balance: 3400, start: 4800, apr: 24.9, min: 95 },
+    { id: uid(), name: 'Store card', kind: 'card', limit: 1500, balance: 640, start: 900, apr: 27.9, min: 35 },
+    { id: uid(), name: 'Car loan', kind: 'loan', limit: 0, balance: 9800, start: 12500, apr: 6.5, min: 310 },
+    { id: uid(), name: 'Student loan', kind: 'loan', limit: 0, balance: 14200, start: 15800, apr: 5.0, min: 160 }
   ];
-  const nwNow = 2600 + 5400 - 27400;
+  const nwNow = 2600 + 5400 - 28040;
   const history = months.map((m, i) => ({ month: m, nw: Math.round(nwNow - (5 - i) * 690 + (i % 2 ? 120 : -80) * (i < 5 ? 1 : 0)) }));
   const lastWeek = weekIndex(today) - 1;
   return {
@@ -213,19 +230,20 @@ if (!S && !lockedBlob) S = sampleState();
 const aggCache = new Map();
 function monthAgg(m) {
   const hit = aggCache.get(m); if (hit) return hit;
-  const a = { income: 0, spend: 0, debt: 0, extra: 0, save: 0, cats: {}, n: 0 };
-  SPEND.forEach(c => a.cats[c] = 0);
+  const a = { income: 0, spend: 0, debt: 0, extra: 0, save: 0, bizcost: 0, cats: {}, inc: {}, n: 0 };
+  SPEND.forEach(c => a.cats[c] = 0); INCOME.forEach(c => a.inc[c] = 0);
   for (const t of S.txns) {
     if (monthOf(t.date) !== m) continue;
     a.n++;
-    if (t.cat === 'income') a.income += t.amount;
+    if (a.inc[t.cat] !== undefined) { a.inc[t.cat] += t.amount; a.income += t.amount; }
+    else if (t.cat === 'bizcost') a.bizcost += -t.amount;
     else if (t.cat === 'debt') { a.debt += -t.amount; if (t.extra) a.extra += -t.amount; }
     else if (t.cat === 'save') a.save += -t.amount;
     else if (a.cats[t.cat] !== undefined) { a.cats[t.cat] += -t.amount; a.spend += -t.amount; }
   }
   a.kept = a.save + a.extra;
   a.rate = a.income > 0 ? a.kept / a.income : 0;
-  a.flow = a.income - a.spend - a.debt - a.save;
+  a.flow = a.income - a.spend - a.debt - a.save - a.bizcost;
   aggCache.set(m, a);
   return a;
 }
@@ -305,6 +323,8 @@ function questList() {
     { id: 'streak4', kind: 'Habit', name: 'Faithful Steward', desc: 'Check in 4 weeks in a row.', xp: 150, value: S.streak.count, target: 4, fmt: v => `${v} / 4 weeks` },
     { id: 'streak12', kind: 'Habit', name: 'Season of Discipline', desc: 'Check in 12 weeks in a row.', xp: 400, value: S.streak.count, target: 12, fmt: v => `${v} / 12 weeks`, after: 'streak4' },
     { id: 'logger', kind: 'Habit', name: 'Royal Scribe', desc: 'Log or import 25 transactions yourself.', xp: 60, value: S.manualCount, target: 25, fmt: v => `${Math.min(v, 25)} / 25` },
+    { id: 'streams2', kind: 'Realm', name: 'Two Banners', desc: 'Earn from two or more income streams this month.', xp: 150, value: INCOME.filter(c => cur.inc[c] > 0).length, target: 2, fmt: v => `${v} / 2 streams` },
+    { id: 'util30', kind: 'Credit', name: 'Tame the Plastic', desc: 'Keep every credit card under 30% of its limit.', xp: 200, value: S.debts.filter(d => d.kind === 'card' && d.limit > 0 && d.balance / d.limit < .3).length, target: Math.max(1, S.debts.filter(d => d.kind === 'card' && d.limit > 0).length), fmt: (v, t) => `${v} / ${t} cards under 30%`, hide: !S.debts.some(d => d.kind === 'card' && d.limit > 0) },
     { id: 'invest1', kind: 'Growth', name: 'Plant the Orchard', desc: 'Make a deposit into an investment account through Coinhold.', xp: 50, value: S.invested ? 1 : 0, target: 1, fmt: v => v ? 'Done' : 'Not yet' }
   ];
   return q.filter(x => !x.hide && (!x.after || S.claimed[x.after]));
@@ -387,7 +407,7 @@ function checkIn(el) {
 
 /* ---------- feedback ---------- */
 function toast(html) {
-  const z = $('#toasts'); const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = html; z.appendChild(t);
+  const z = $('#toasts'); const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = '<span class="tc">' + ICON.coin + '</span><span>' + html + '</span>'; z.appendChild(t);
   setTimeout(() => t.remove(), 3200);
   while (z.children.length > 3) z.firstChild.remove();
 }
@@ -416,7 +436,10 @@ function confirmBox(title, body, okLabel, fn) {
   $('#okbtn').onclick = () => { closeModal(); fn(); };
 }
 function showLevelUp(info) {
-  modal(`<div class="levelup"><div class="label">Level ${info.lvl}</div><div class="big">You are now a ${info.title}</div>
+  const rays = Array.from({ length: 12 }, (_, k) => `<path d="M80 80 L${80 + 80 * Math.cos(k * Math.PI / 6 - .12)} ${80 + 80 * Math.sin(k * Math.PI / 6 - .12)} L${80 + 80 * Math.cos(k * Math.PI / 6 + .12)} ${80 + 80 * Math.sin(k * Math.PI / 6 + .12)}Z"/>`).join('');
+  modal(`<div class="levelup"><svg class="burst" viewBox="0 0 160 160" aria-hidden="true"><g class="rays" fill="var(--gold-fill)" opacity=".35">${rays}</g>
+    <path d="M80 30 L112 42 V70 C112 94 96 110 80 118 C64 110 48 94 48 70 V42 Z" fill="var(--royal)" stroke="var(--gold-fill)" stroke-width="4"/><text x="80" y="88" text-anchor="middle" font-family="Cinzel, serif" font-weight="700" font-size="34" fill="#ffd668">${info.lvl}</text></svg>
+    <div class="label">Level ${info.lvl}</div><div class="big">You are now a ${info.title}</div>
     <p>${info.lvl >= 5 ? 'Your keep gains a new tower.' : 'Your kingdom grows.'} ${info.max ? 'You reached the highest rank in the land.' : `${info.need} XP to the next rank.`}</p></div>
     <div class="btns"><button class="btn gold" data-close>Long live the ${info.title}</button></div>`);
 }
@@ -434,6 +457,8 @@ function renderHeader() {
   const wk = weekIndex(todayStr());
   const done = S.streak.last === wk;
   $('#rank').innerHTML = `
+    <span class="lvl-badge" aria-hidden="true"><svg viewBox="0 0 46 52"><defs><linearGradient id="lb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe58a"/><stop offset="1" stop-color="#d99a14"/></linearGradient></defs>
+      <path d="M23 2 L43 9 V24 C43 37 33 46 23 50 C13 46 3 37 3 24 V9 Z" fill="url(#lb)" stroke="#fff" stroke-opacity=".6" stroke-width="2"/><text x="23" y="32" text-anchor="middle" font-family="Cinzel, serif" font-weight="700" font-size="20" fill="#3a2a05">${L.lvl}</text></svg></span>
     <div class="rankbox"><div class="rankline"><span><b>${L.title}</b> · Level ${L.lvl}</span><span class="muted">${L.max ? S.xp + ' XP' : `${L.into} / ${L.need} XP`}</span></div>
       <div class="xpbar" role="progressbar" aria-label="Experience to next level" aria-valuemin="0" aria-valuemax="${L.need}" aria-valuenow="${L.into}"><i style="width:${L.max ? 100 : Math.min(100, L.into / L.need * 100)}%"></i></div></div>
     <span class="chip" title="Weekly check-in streak">${ICON.flame}${S.streak.count} wk streak</span>
@@ -495,6 +520,16 @@ function sceneSVG() {
   <path d="M0 240 Q150 196 320 226 T640 216 T900 230 V320 H0Z" fill="var(--hill1)"/>
   <path d="M0 274 Q200 244 420 266 T900 262 V320 H0Z" fill="var(--hill2)"/>
   <path d="M${gx - 22} ${G} Q${gx - 10} 290 ${gx - 60} 320 H${gx + 60} Q${gx + 10} 290 ${gx + 22} ${G}Z" fill="var(--path)" opacity=".8"/>`;
+  // night sky, birds, village (grows with the savings rate), grass
+  s += `<g style="opacity:var(--star)" fill="#fff">${[[60, 30], [180, 22], [260, 70], [400, 26], [520, 80], [610, 34], [760, 120], [880, 40], [340, 110], [130, 120]].map(([x, y], k) => `<circle cx="${x}" cy="${y}" r="${k % 3 ? 1.2 : 1.8}"/>`).join('')}</g>`;
+  s += `<g fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round" opacity=".45">${[[380, 70], [400, 82], [420, 66]].map(([x, y]) => `<path d="M${x - 6} ${y} q3 -4 6 0 q3 -4 6 0"/>`).join('')}</g>`;
+  const rate = monthAgg(curMonth()).rate, houses = 1 + (rate >= .1) + (rate >= .2);
+  for (let k = 0; k < houses; k++) {
+    const hx = 430 + k * 34, hy = G + 4 - (k % 2) * 4;
+    s += `<g><rect x="${hx - 12}" y="${hy - 20}" width="24" height="20" fill="var(--stone)"/><rect x="${hx - 12}" y="${hy - 20}" width="24" height="20" fill="url(#bricks)"/><path d="M${hx - 16} ${hy - 19} L${hx} ${hy - 34} L${hx + 16} ${hy - 19}Z" fill="var(--s2)"/>
+      <rect x="${hx - 3}" y="${hy - 11}" width="6" height="11" fill="var(--wood)"/><rect x="${hx + 5}" y="${hy - 16}" width="5" height="5" fill="var(--win)"/></g>`;
+  }
+  s += `<g fill="var(--leaf)" opacity=".7">${[30, 110, 200, 380, 520, 600, 690, 770, 860].map((x, k) => `<path d="M${x} ${300 + (k % 3) * 6} l3 -10 l2 10 l3 -8 l2 8Z"/>`).join('')}</g>`;
   // keep
   const kH = 96 + Math.min(L.lvl, 10) * 6, kx = gx - 56, kw = 112, ky = G - kH;
   const tower = (x, h, w = 38) => {
@@ -538,8 +573,8 @@ function sceneSVG() {
     s += `<text x="${46 + (trees - 1) * 12}" y="222" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)" opacity=".85" font-family="DM Sans, sans-serif">Orchard ${money(inv)}</text>`;
   }
   const live = S.debts.filter(d => d.balance > 0).sort((a, b) => b.apr - a.apr);
-  const spots = [[585, 178], [705, 100], [780, 200], [690, 240]];
-  live.slice(0, 4).forEach((d, i) => { const sc = .6 + Math.min(1, d.balance / 15000) * .3; s += dragonSVG(d, i, spots[i][0], spots[i][1], sc); });
+  const spots = live.length > 3 ? [[575, 175], [690, 92], [835, 150], [745, 235]] : [[585, 178], [705, 100], [780, 200]];
+  live.slice(0, 4).forEach((d, i) => { const sc = (live.length > 3 ? .5 : .6) + Math.min(1, d.balance / 15000) * .3; s += dragonSVG(d, i, spots[i][0], spots[i][1], sc); });
   if (!live.length && S.debts.length) s += `<text x="680" y="160" text-anchor="middle" font-size="18" fill="var(--ink)" font-family="Cinzel, serif">The skies are clear. Every dragon is slain.</text>`;
   return s + '</svg>';
 }
@@ -558,7 +593,7 @@ function renderKingdom() {
     <p><a class="btn primary" href="#ledger" style="text-decoration:none;display:inline-block">Open the Ledger</a></p></section>` : '';
   const dragons = S.debts.length ? S.debts.map(d => {
     const hp = d.start ? d.balance / d.start : 1, fire = d.balance * d.apr / 1200;
-    return `<div class="dragon ${d.balance <= 0 ? 'slain' : ''}" id="dragon-${d.id}">
+    return `<div class="dragon ${d.balance <= 0 ? 'slain' : d.apr >= 15 ? 'hot' : ''}" id="dragon-${d.id}">
       <div class="top"><div><h3>${esc(d.name)}</h3><span class="small muted">${d.apr}% APR</span></div>
         <svg class="portrait" viewBox="-112 -68 214 104" aria-hidden="true"${d.balance <= 0 ? ' style="filter:grayscale(1);opacity:.5"' : ''}>${dragonArt(d, 'pd-' + d.id, false)}</svg></div>
       <div class="hp" role="progressbar" aria-label="${esc(d.name)} remaining balance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(hp * 100)}"><i style="width:${Math.max(0, Math.min(100, hp * 100))}%"></i></div>
@@ -570,7 +605,9 @@ function renderKingdom() {
     </div>`;
   }).join('') : '<div class="empty">No dragons yet. Add debts in the Ledger, and each one appears here with an HP bar you can whittle down.</div>';
   const accts = S.accounts.map(ac => `<div class="dragon" style="background:var(--surface2)">
-      <div class="top"><h3>${esc(ac.name)}</h3><span class="tag">${ac.kind === 'invest' ? 'Orchard' : 'Castle walls'}</span></div>
+      <div class="top"><div><h3>${esc(ac.name)}</h3><span class="tag">${ac.kind === 'invest' ? 'Orchard' : 'Castle walls'}</span></div>${ac.kind === 'invest'
+        ? `<svg class="portrait" viewBox="0 0 96 48" aria-hidden="true"><rect x="46" y="28" width="5" height="18" fill="var(--wood)"/><circle cx="48" cy="22" r="17" fill="var(--s6)"/><circle cx="54" cy="16" r="11" fill="var(--leaf)"/><circle cx="40" cy="22" r="3.5" fill="var(--gold-fill)"/><circle cx="55" cy="28" r="3.5" fill="var(--gold-fill)"/><circle cx="50" cy="12" r="3" fill="var(--gold-fill)"/><rect x="22" y="44" width="52" height="3" rx="1.5" fill="var(--hill2)"/></svg>`
+        : `<svg class="portrait" viewBox="0 0 96 48" aria-hidden="true"><rect x="10" y="18" width="76" height="28" fill="var(--stone)"/><rect x="10" y="18" width="76" height="28" fill="url(#bricks)"/>${[10, 26, 42, 58, 74].map(x => `<rect x="${x}" y="10" width="12" height="9" fill="var(--stone)"/>`).join('')}<path d="M40 46 v-12 a8 8 0 0 1 16 0 v12Z" fill="var(--wood)"/></svg>`}</div>
       <div class="top"><b style="font-size:1.2rem">${money(ac.balance)}</b>${ac.kind === 'emergency' ? `<span class="small muted">${wm.toFixed(1)} months covered</span>` : ''}</div>
       <div class="row"><button class="btn sm" data-dep="${ac.id}">Deposit</button></div>
       <form class="inline-form" data-depform="${ac.id}" hidden><input id="dep-${ac.id}" type="number" min="1" step="any" placeholder="Amount" aria-label="Deposit amount" required><button class="btn sm gold">Add gold</button></form>
@@ -589,7 +626,7 @@ function renderKingdom() {
   $('#view').innerHTML = `<div class="wrap" style="gap:16px">
     ${welcome}
     ${headline}
-    <div class="scene">${sceneSVG()}<div class="cap"><span>Walls: tier ${tier} (${wm.toFixed(1)} mo)</span><span>Keep: level ${levelInfo(S.xp).lvl}</span>${ready ? `<span><a href="#quests">${ready} quest reward${ready > 1 ? 's' : ''} to claim</a></span>` : ''}</div></div>
+    <div class="scene">${sceneSVG()}<div class="ribbon">${levelInfo(S.xp).title} of Coinhold</div><div class="cap"><span>Walls: tier ${tier} (${wm.toFixed(1)} mo)</span>${ready ? `<span><a href="#quests">${ready} quest reward${ready > 1 ? 's' : ''} to claim</a></span>` : ''}</div></div>
     <div class="stats">
       <div class="stat"><span class="ico" style="background:var(--royal-soft);color:var(--royal)">${ICON.coin}</span><span class="label">Kingdom value</span><span class="v">${money(nw)}</span><span class="d">${prevH ? `<span class="${nwDelta >= 0 ? 'up' : 'down'}">${nwDelta >= 0 ? '▲' : '▼'} ${money(Math.abs(nwDelta))}</span> since ${monthName(prevH.month)}` : 'Net worth: savings minus debts'}</span>${spark}</div>
       <div class="stat"><span class="ico" style="background:var(--royal-soft);color:var(--royal)">${ICON.chart}</span><span class="label">Left this month</span><span class="v ${a.flow < 0 ? 'down' : ''}">${money(a.flow)}</span><span class="d">${money(a.income)} in, ${money(a.spend + a.debt + a.save)} out</span></div>
@@ -749,6 +786,157 @@ function drawMapCharts(last6) {
   wireLine('nw');
 }
 
+/* ---------- realm: resources, trade routes, holdings, upkeep, credit ---------- */
+function avgAgg(n = 3) {
+  const cm = curMonth();
+  const ms = monthsWithData().filter(m => m < cm).slice(-n);
+  const aggs = (ms.length ? ms : [cm]).map(monthAgg);
+  const out = { income: 0, spend: 0, debt: 0, save: 0, bizcost: 0, inc: {}, months: ms.length || 1 };
+  INCOME.forEach(c => out.inc[c] = 0);
+  for (const a of aggs) { ['income', 'spend', 'debt', 'save', 'bizcost'].forEach(k => out[k] += a[k] / aggs.length); INCOME.forEach(c => out.inc[c] += a.inc[c] / aggs.length); }
+  out.flow = out.income - out.spend - out.debt - out.save - out.bizcost;
+  return out;
+}
+const BILL_CATS = ['home', 'subs', 'transport', 'health', 'debt'];
+function recurringBills() {
+  const cm = curMonth(), today = Number(todayStr().slice(8));
+  const recent = new Set([cm, ...[1, 2, 3].map(k => addMonths(cm, -k))]);
+  const map = {};
+  for (const t of S.txns) {
+    const m = monthOf(t.date);
+    if (!recent.has(m) || !BILL_CATS.includes(t.cat) || t.amount >= 0 || t.extra) continue;
+    const k = t.desc.toLowerCase();
+    const b = map[k] || (map[k] = { name: t.desc, cat: t.cat, months: new Set(), perMonth: {}, amts: [], last: '', amount: 0, paid: false });
+    b.months.add(m); b.perMonth[m] = (b.perMonth[m] || 0) + 1; b.amts.push(-t.amount);
+    if (t.date > b.last) { b.last = t.date; b.amount = -t.amount; }
+    if (m === cm) b.paid = true;
+  }
+  // A bill comes once a month at a steady amount (utilities on Home & bills may swing more).
+  return Object.values(map).filter(b => b.months.size >= 2 && Math.max(...Object.values(b.perMonth)) === 1
+    && Math.max(...b.amts) / Math.min(...b.amts) <= (b.cat === 'home' ? 1.8 : 1.2)).map(b => {
+    const day = Number(b.last.slice(8));
+    const status = b.paid ? 'paid' : day < today ? 'late' : day - today <= 5 ? 'soon' : 'later';
+    return { ...b, day, status };
+  }).sort((a, b) => a.day - b.day);
+}
+const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+function buildingLevel(v) { return v <= 0 ? 0 : v < 250 ? 1 : v < 1000 ? 2 : v < 3000 ? 3 : 4; }
+function buildingSVG(kind, lvl) {
+  const c = STREAMS[kind].color, k = Math.max(1, lvl);
+  const stars = Array.from({ length: 4 }, (_, i) => `<path transform="translate(${118 + i * 14} 12)" d="M0 -5 L1.5 -1.5 L5 -1.2 L2.3 1.2 L3.1 5 L0 3 L-3.1 5 L-2.3 1.2 L-5 -1.2 L-1.5 -1.5Z" fill="${i < lvl ? 'var(--gold-fill)' : 'var(--base)'}"/>`).join('');
+  const ground = `<ellipse cx="90" cy="92" rx="80" ry="7" fill="var(--hill1)"/>`;
+  let art = '';
+  if (kind === 'job') art = `<rect x="${60 - k * 4}" y="${60 - k * 6}" width="${60 + k * 8}" height="${32 + k * 6}" fill="var(--stone)"/><rect x="${60 - k * 4}" y="${60 - k * 6}" width="${60 + k * 8}" height="${32 + k * 6}" fill="url(#bricks)"/>
+      <path d="M${54 - k * 4} ${60 - k * 6} L90 ${36 - k * 6} L${126 + k * 4} ${60 - k * 6}Z" fill="${c}"/>${[0, 1, 2, 3].slice(0, 2 + Math.min(2, k - 1)).map(i => `<rect x="${68 + i * 14 - k * 2}" y="${66 - k * 5}" width="6" height="${22 + k * 5}" fill="var(--surface)" opacity=".85"/>`).join('')}
+      <rect x="84" y="${76}" width="12" height="16" fill="var(--wood)"/><line x1="90" y1="${36 - k * 6}" x2="90" y2="${22 - k * 6}" stroke="var(--ink2)"/><path d="M90 ${22 - k * 6} h12 l-3 3 l3 3 h-12Z" fill="var(--gold-fill)"/>`;
+  else if (kind === 'business') art = `${k >= 3 ? `<rect x="104" y="58" width="44" height="34" fill="var(--stone)"/><path d="M100 58 L126 42 L152 58Z" fill="${c}"/>` : ''}
+      <rect x="40" y="60" width="64" height="32" fill="var(--wood)"/><path d="M34 60 h76 l-6 -18 h-64Z" fill="${c}"/>${[0, 1, 2, 3, 4].map(i => `<path d="M${40 + i * 14} 42 h7 l2 18 h-11Z" fill="#fff" opacity=".8"/>`).join('')}
+      <rect x="46" y="66" width="52" height="4" fill="var(--surface)" opacity=".6"/>${Array.from({ length: k + 1 }, (_, i) => `<circle cx="${52 + i * 11}" cy="${63}" r="4" fill="var(--gold-fill)"/>`).join('')}
+      <rect x="20" y="78" width="16" height="14" fill="var(--wood)"/><rect x="24" y="70" width="12" height="10" fill="var(--wood)" opacity=".8"/>`;
+  else if (kind === 'side') art = `<rect x="56" y="56" width="58" height="36" fill="var(--stone)"/><path d="M50 58 L85 34 L120 58Z" fill="${c}"/><rect x="100" y="30" width="9" height="20" fill="var(--stone2)"/>
+      ${Array.from({ length: k }, (_, i) => `<circle cx="${106 + i * 5}" cy="${24 - i * 7}" r="${4 + i}" fill="var(--muted)" opacity="${.45 - i * .08}"/>`).join('')}
+      <rect x="64" y="70" width="14" height="22" fill="var(--wood)"/><rect x="88" y="66" width="16" height="12" fill="var(--win)"/><path d="M124 92 h26 v-6 h-6 v-8 h-14 v8 h-6Z" fill="var(--ink2)"/>`;
+  else if (kind === 'passive') art = `<path d="M18 92 Q50 30 90 30 Q130 30 162 92Z" fill="var(--hill2)"/><path d="M68 92 v-26 a22 22 0 0 1 44 0 v26Z" fill="var(--ink)" opacity=".85"/>
+      <path d="M64 92 v-28 a26 26 0 0 1 52 0 v28" fill="none" stroke="var(--wood)" stroke-width="6"/><rect x="${118}" y="78" width="30" height="12" rx="2" fill="var(--stone2)"/>
+      ${Array.from({ length: k + 1 }, (_, i) => `<circle cx="${122 + i * 6}" cy="${76 - (i % 2) * 3}" r="4" fill="var(--gold-fill)"/>`).join('')}<circle cx="124" cy="92" r="3" fill="var(--ink2)"/><circle cx="142" cy="92" r="3" fill="var(--ink2)"/>`;
+  else art = `<path d="M50 92 L90 40 L130 92Z" fill="${c}"/><path d="M80 92 L90 70 L100 92Z" fill="var(--ink)" opacity=".7"/><line x1="90" y1="40" x2="90" y2="22" stroke="var(--ink2)"/><path d="M90 22 h14 l-4 4 l4 4 h-14Z" fill="var(--gold-fill)"/>
+      ${Array.from({ length: k }, (_, i) => `<rect x="${136 + (i % 2) * 12}" y="${80 - Math.floor(i / 2) * 12}" width="11" height="11" fill="var(--wood)"/>`).join('')}`;
+  return `<svg viewBox="0 0 180 100" class="bld${lvl ? '' : ' unbuilt'}" aria-hidden="true">${ground}${art}${stars}</svg>`;
+}
+function sankeySVG(av, bills, W) {
+  const billsNonDebt = bills.filter(b => b.cat !== 'debt').reduce((s, b) => s + b.amount, 0);
+  const left = INCOME.filter(c => av.inc[c] > 0).map(c => ({ key: c, name: STREAMS[c].building, sub: CATS[c].name, v: av.inc[c], color: STREAMS[c].color }));
+  const upkeep = Math.min(av.spend, billsNonDebt);
+  const right = [
+    { key: 'bills', name: 'Bills & upkeep', v: upkeep, color: 'var(--s8)' },
+    { key: 'living', name: 'Living costs', v: Math.max(0, av.spend - upkeep), color: 'var(--s2)' },
+    { key: 'bizcost', name: 'Business costs', v: av.bizcost, color: 'var(--s5)' },
+    { key: 'debt', name: 'Debt payments', v: av.debt, color: 'var(--crit-fill)' },
+    { key: 'save', name: 'Savings', v: av.save, color: 'var(--good-fill)' },
+    { key: 'surplus', name: 'Left over', v: Math.max(0, av.flow), color: 'var(--s3)' }
+  ].filter(n => n.v > 0.5);
+  if (av.flow < 0) left.push({ key: 'short', name: 'Shortfall', sub: 'Covered by savings or credit', v: -av.flow, color: 'var(--muted)' });
+  const T = left.reduce((s, n) => s + n.v, 0);
+  if (!T || !right.length) return '<div class="empty">Log some income and spending to see your trade routes.</div>';
+  const narrow = W < 560, H = narrow ? 360 : 320, gap = 10, bw = 14;
+  const x1 = narrow ? 4 : 150, x2 = narrow ? W - 18 : W - 164;
+  const place = nodes => { const sc = (H - gap * (nodes.length - 1)) / T; let y = 0; nodes.forEach(n => { n.h = Math.max(2, n.v * sc); n.y = y; n.o = 0; y += n.h + gap; }); return sc; };
+  const sc = place(left); place(right);
+  let s = `<svg viewBox="0 0 ${W} ${H + 8}" role="img" aria-label="How income flows into bills, living costs, debt and savings each month">`;
+  for (const a of left) for (const b of right) {
+    const v = a.v * b.v / T, h = v * sc; if (h < .3) continue;
+    const ya = a.y + a.o, yb = b.y + b.o; a.o += h; b.o += h;
+    const mx = (x1 + bw + x2) / 2;
+    s += `<path d="M${x1 + bw} ${ya} C${mx} ${ya} ${mx} ${yb} ${x2} ${yb} L${x2} ${yb + h} C${mx} ${yb + h} ${mx} ${ya + h} ${x1 + bw} ${ya + h}Z" fill="${a.color}" opacity=".32" class="rib" data-tip="<b>${a.name} → ${b.name}</b><br>about ${money(v)} a month"/>`;
+  }
+  // Labels sit beside their bar, nudged apart so small neighbours never overlap.
+  const spread = nodes => { let last = -Infinity; nodes.forEach(n => { n.ly = Math.max(n.y + n.h / 2, last + 30); last = n.ly; });
+    const over = last + 16 - H; if (over > 0) { let next = Infinity; for (let i = nodes.length - 1; i >= 0; i--) { nodes[i].ly = Math.min(nodes[i].ly - over, next - 30); next = nodes[i].ly; } } };
+  spread(left); spread(right);
+  const label = (n, x, anchor) => `<text x="${x}" y="${n.ly - 2}" text-anchor="${anchor}" class="sk-name">${n.name}</text><text x="${x}" y="${n.ly + 13}" text-anchor="${anchor}" class="sk-val">${money(n.v)}/mo</text>`;
+  left.forEach(n => s += `<rect x="${x1}" y="${n.y}" width="${bw}" height="${n.h}" rx="3" fill="${n.color}" data-tip="<b>${n.name}</b> (${n.sub})<br>${money(n.v)} a month"/>` + label(n, narrow ? x1 + bw + 6 : x1 - 8, narrow ? 'start' : 'end', narrow));
+  right.forEach(n => s += `<rect x="${x2}" y="${n.y}" width="${bw}" height="${n.h}" rx="3" fill="${n.color}" data-tip="<b>${n.name}</b><br>${money(n.v)} a month (${pct(n.v / T)})"/>` + label(n, narrow ? x2 - 6 : x2 + bw + 8, narrow ? 'end' : 'start', narrow));
+  return s + '</svg>';
+}
+function renderRealm() {
+  const av = avgAgg(), cur = monthAgg(curMonth()), prev = monthAgg(addMonths(curMonth(), -1));
+  const bills = recurringBills();
+  const billTotal = bills.reduce((s, b) => s + b.amount, 0);
+  const cards = S.debts.filter(d => d.kind === 'card' && d.balance >= 0);
+  const loans = S.debts.filter(d => d.kind !== 'card');
+  const lim = cards.reduce((s, d) => s + d.limit, 0), cbal = cards.reduce((s, d) => s + d.balance, 0);
+  const util = lim ? cbal / lim : 0;
+  const utilState = u => u < .3 ? ['up', ICON.ok, 'Healthy'] : u < .5 ? ['', ICON.warn, 'Getting high'] : ['down', ICON.over, 'Too high'];
+  const next7 = bills.filter(b => !b.paid && b.day >= Number(todayStr().slice(8)) && b.day - Number(todayStr().slice(8)) <= 7);
+  const res = [
+    ['Gold in', av.income, ICON.coin, `${INCOME.filter(c => av.inc[c] > 0).length} income streams`],
+    ['Upkeep', billTotal, ICON.wall, `${bills.length} regular bills`],
+    ['Tribute', av.debt, ICON.sword, 'paid to debt dragons'],
+    ['Treasury', acctTotal(), ICON.seed, 'savings and investments'],
+    ['Surplus', av.flow, ICON.chart, av.flow >= 0 ? 'left each month' : 'short each month']
+  ];
+  const streamCard = c => {
+    const v = av.inc[c], lvl = buildingLevel(v), st = STREAMS[c];
+    const delta = cur.inc[c] - prev.inc[c];
+    const biz = c === 'business' && (av.inc.business > 0 || av.bizcost > 0);
+    return `<div class="holding ${lvl ? '' : 'empty-h'}">${buildingSVG(c, lvl)}
+      <div class="hh"><h3>${st.building}</h3><span class="tag">${lvl ? 'Level ' + lvl : 'Not built'}</span></div>
+      <p class="small muted">${CATS[c].name}: ${st.blurb.toLowerCase()}.</p>
+      ${lvl ? `<div class="kv"><span>Average a month</span><b>${money(v)}</b></div>
+      <div class="kv"><span>This month so far</span><b>${money(cur.inc[c])} <span class="small ${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '▲' : '▼'} ${money(Math.abs(delta))}</span></b></div>
+      <div class="kv"><span>Share of income</span><b>${pct(v / (av.income || 1))}</b></div>
+      ${biz ? `<div class="kv"><span>Costs a month</span><b class="down">−${money(av.bizcost)}</b></div><div class="kv"><span>Profit a month</span><b class="${v - av.bizcost >= 0 ? 'up' : 'down'}">${money(v - av.bizcost)} (${pct((v - av.bizcost) / (v || 1))} margin)</b></div>` : ''}
+      ${lvl < 4 ? `<p class="small muted">Next level at ${money([0, 250, 1000, 3000][lvl])} a month.</p>` : '<p class="small up">Maximum level.</p>'}`
+      : `<p class="small">Log income as <b>${CATS[c].name}</b> in the Ledger to build it.</p>`}</div>`;
+  };
+  $('#view').innerHTML = `<div class="wrap" style="gap:16px">
+    <div class="resbar">${res.map(([n, v, ic, d]) => `<div class="res"><span class="ric">${ic}</span><span class="label">${n}</span><span class="rv ${n === 'Surplus' && v < 0 ? 'neg' : ''}">${money(v)}${n === 'Treasury' ? '' : '<small>/mo</small>'}</span><span class="rd">${d}</span></div>`).join('')}</div>
+    <section class="panel"><div class="panel-head"><h2>Trade routes</h2><span class="muted small">Where each month’s gold comes from and where it goes. Average of your last ${av.months} full month${av.months > 1 ? 's' : ''}.</span></div>
+      <div class="chart" id="sankey"></div>
+      <p class="note">Money is pooled, so each income stream is drawn flowing out in proportion to your spending. Hover a route for its amount.</p></section>
+    <section class="panel"><div class="panel-head"><h2>Holdings</h2><span class="muted small">Every income stream is a building. Earn more from it to level it up.</span></div>
+      <div class="holdings">${INCOME.map(streamCard).join('')}</div></section>
+    <div class="grid">
+    <section class="panel"><div class="panel-head"><h2>Upkeep: regular bills</h2><span class="muted small">${money(billTotal)} a month${next7.length ? ` · ${next7.length} due in the next 7 days` : ''}</span></div>
+      ${bills.length ? `<div class="scroll"><table><thead><tr><th>Bill</th><th>Due</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>
+      ${bills.map(b => `<tr><td>${esc(b.name)}<div class="small muted">${CATS[b.cat].name}</div></td><td>${ordinal(b.day)}</td><td class="num">${money(b.amount, 2)}</td><td><span class="status ${b.status === 'paid' ? 'up' : b.status === 'late' ? 'down' : ''}">${b.status === 'paid' ? ICON.ok + ' Paid' : b.status === 'late' ? ICON.over + ' Not paid yet' : b.status === 'soon' ? ICON.warn + ' Due soon' : 'Upcoming'}</span></td></tr>`).join('')}
+      </tbody></table></div><p class="note">Found automatically: charges that repeat in at least two of the last four months.</p>` : '<div class="empty">Regular bills show up here once they repeat in two months.</div>'}</section>
+    <section class="panel"><div class="panel-head"><h2>Credit and loans</h2><span class="right"><a class="small" href="#ledger">Edit</a></span></div>
+      ${cards.length ? `<div class="kv"><span><b>All cards</b>: ${money(cbal)} of ${lim ? money(lim) : 'no limit set'}</span>${lim ? `<span class="status ${utilState(util)[0]}">${utilState(util)[1]} ${pct(util)} used · ${utilState(util)[2]}</span>` : ''}</div>
+      ${cards.map(d => { const u = d.limit ? d.balance / d.limit : 0, us = utilState(u); return `<div class="credit"><div class="ln"><b>${esc(d.name)}</b><span class="small muted">${d.apr}% APR</span>${d.limit ? `<span class="status ${us[0]}">${us[1]} ${pct(u)} used</span>` : '<span class="small muted">Add a limit in the Ledger</span>'}</div>
+        ${d.limit ? `<div class="track" data-tip="<b>${esc(esc(d.name))}</b><br>${money(d.balance)} of ${money(d.limit)} limit"><i style="width:${Math.min(100, u * 100)}%;background:${u < .3 ? 'var(--good-fill)' : u < .5 ? 'var(--warn)' : 'var(--crit-fill)'}"></i><span class="pace" style="left:30%" title="30% line"></span></div>` : ''}</div>`; }).join('')}
+      <p class="note">Keeping each card under 30% of its limit (the line) helps your credit score.</p>` : '<p class="muted">No credit cards. Add one in the Ledger and set its type to Credit card.</p>'}
+      ${loans.length ? `<div class="scroll"><table><thead><tr><th>Loan</th><th class="num">Balance</th><th class="num">Rate</th><th class="num">Paid off at minimums</th></tr></thead><tbody>
+      ${loans.map(d => { const r = simulate([d], 0, 'avalanche'); return `<tr><td>${esc(d.name)}</td><td class="num">${money(d.balance)}</td><td class="num">${d.apr}%</td><td class="num">${d.balance <= 0 ? 'Paid off' : r.capped ? 'Never' : yrs(r.months)}</td></tr>`; }).join('')}</tbody></table></div>` : ''}</section>
+    </div>
+  </div>`;
+  drawRealmCharts();
+}
+function drawRealmCharts() {
+  const el = $('#sankey'); if (!el) return;
+  el.innerHTML = sankeySVG(avgAgg(), recurringBills(), Math.max(320, el.clientWidth));
+}
+
 /* ---------- quests view ---------- */
 function trophySVG(locked) { if (!locked) return `<svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".5" stop-color="#f2b632"/><stop offset="1" stop-color="#b8830c"/></linearGradient></defs>
   <path d="M12 9H7a5 5 0 0 0 6 7M28 9h5a5 5 0 0 1-6 7" stroke="#d99a14" stroke-width="2.2" fill="none"/><path d="M11 5h18v9a9 9 0 0 1-18 0Z" fill="url(#tg)"/><path d="M15 7v7a5 5 0 0 0 2 4" stroke="#fff" stroke-width="1.6" opacity=".7" fill="none" stroke-linecap="round"/>
@@ -763,7 +951,7 @@ function renderQuests() {
     <div class="quests">${active.map(q => {
       const p = Math.max(0, Math.min(1, q.value / q.target)), ready = questReady(q);
       return `<div class="quest ${ready ? 'ready' : ''}"><div class="qtop"><span class="tag">${esc(q.kind)}</span><span class="xp">+${q.xp} XP</span></div>
-        <h3>${esc(q.name)}</h3><p class="small muted">${esc(q.desc)}</p>
+        <div class="qhead"><span class="medal" aria-hidden="true">${questIcon(q.id)}</span><h3>${esc(q.name)}</h3></div><p class="small muted">${esc(q.desc)}</p>
         <div class="qbar" role="progressbar" aria-label="${esc(q.name)} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${p * 100}%"></i></div>
         <div class="qtop small"><span>${q.fmt(q.value, q.target)}</span><span class="muted">${q.hint && !ready ? esc(q.hint) : ''}</span></div>
         ${ready ? `<button class="btn gold" data-claim="${q.id}">Claim ${q.xp} XP</button>` : ''}</div>`;
@@ -773,12 +961,16 @@ function renderQuests() {
     <div class="trophies">${all.map(t => `<div class="trophy ${t.got ? '' : 'locked'}">${trophySVG(!t.got)}<b>${esc(t.name)}</b><span class="muted small">${t.got ? 'Earned ' + new Date(t.got + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : esc(t.how)}</span></div>`).join('')}</div></section>
   </div>`;
 }
+function questIcon(id) {
+  const k = id.split(/[-_0-9]/)[0];
+  return ({ streams: ICON.coin, util: ICON.shield, walls: ICON.wall, slay: ICON.sword, extra: ICON.sword, subs: ICON.scissors, nospend: ICON.plate, save: ICON.seed, upkeep: ICON.chart, streak: ICON.flame, logger: ICON.chart, invest: ICON.seed })[k] || ICON.coin;
+}
 function questDefsForTrophies() {
   const base = [
     ['logger_first', 'Opened the Ledger', 'Start your kingdom'], ['walls1', 'Castle Walls I', '1 month emergency fund'], ['walls2', 'Castle Walls II', '3 months emergency fund'],
     ['walls3', 'Castle Walls III', '6 months emergency fund'], ['slay1', 'First Blood', 'Pay off a debt'], ['extra500', 'Sharpened Blade', '$500 extra to debt'],
     ['subs', 'Royal Audit', 'Review subscriptions'], ['streak4', 'Faithful Steward', '4-week streak'], ['streak12', 'Season of Discipline', '12-week streak'],
-    ['logger', 'Royal Scribe', 'Log 25 transactions'], ['invest1', 'Plant the Orchard', 'First investment']
+    ['logger', 'Royal Scribe', 'Log 25 transactions'], ['invest1', 'Plant the Orchard', 'First investment'], ['streams2', 'Two Banners', 'Two income streams'], ['util30', 'Tame the Plastic', 'Cards under 30%']
   ].map(([id, name, how]) => ({ name, how, got: S.claimed[id] }));
   const monthly = Object.keys(S.claimed).filter(k => /-\d{4}-\d{2}$/.test(k)).map(k => {
     const m = k.slice(-7), kind = k.slice(0, -8);
@@ -827,6 +1019,9 @@ function buildMoves() {
   const moves = [];
   const hot = S.debts.filter(d => d.balance > 0).sort((a, b) => b.apr - a.apr)[0];
   if (hot && hot.apr >= 10) moves.push({ ic: ICON.sword, title: `Aim every spare dollar at the ${hot.name} dragon`, body: `At ${hot.apr}% it costs you about ${money(hot.balance * hot.apr / 100)} a year in interest. No savings account or typical investment reliably beats that, so paying it down is a guaranteed ${hot.apr}% return.`, impact: hot.balance * hot.apr / 100, unit: 'interest a year' });
+  const cardsU = S.debts.filter(d => d.kind === 'card' && d.limit > 0 && d.balance > d.limit * .3);
+  if (cardsU.length) { const need = cardsU.reduce((x, d) => x + d.balance - d.limit * .3, 0);
+    moves.push({ ic: ICON.shield, title: 'Bring credit cards under 30% of their limits', body: `${cardsU.map(d => d.name).join(' and ')} ${cardsU.length > 1 ? 'are' : 'is'} above 30% used. Paying ${money(need)} toward ${cardsU.length > 1 ? 'them' : 'it'} gets every card under the line, which usually helps your credit score and cuts interest.`, impact: need, unit: 'to pay down', neutral: true }); }
   const wm = wallMonths(), ess = essentials();
   if (ess > 0 && wm < 3) {
     const gap = Math.max(0, ess * (wm < 1 ? 1 : 3) - acctTotal('emergency'));
@@ -902,9 +1097,13 @@ const AUTO = [
   [/netflix|spotify|hulu|disney|prime|stream|gym|membership|cloud|icloud|youtube|subscription|patreon/i, 'subs'],
   [/amazon|target|walmart|store|shop|online order|best buy|ikea/i, 'shopping'], [/movie|concert|ticket|steam|game|bowling|bar /i, 'fun'],
   [/pharmacy|doctor|dental|clinic|cvs|walgreens|haircut/i, 'health'], [/loan|credit card payment|card payment|student/i, 'debt'],
-  [/transfer to sav|savings|brokerage|invest|401k|ira\b|vanguard|fidelity/i, 'save'], [/payroll|paycheck|salary|direct dep|deposit from/i, 'income']
+  [/transfer to sav|savings|brokerage|invest|401k|ira\b|vanguard|fidelity/i, 'save'], [/payroll|paycheck|salary|direct dep|wages/i, 'job'], [/etsy|shopify|stripe|square|invoice|client|sales|customer/i, 'business'],
+  [/freelance|upwork|fiverr|gig|doordash pay|uber pay|tutoring/i, 'side'], [/dividend|interest paid|rent received|rental income|tenant/i, 'passive']
 ];
-function guessCat(desc, amount) { for (const [re, c] of AUTO) if (re.test(desc)) { if (c === 'income' && amount < 0) continue; return c; } return amount > 0 ? 'income' : 'health'; }
+function guessCat(desc, amount) {
+  for (const [re, c] of AUTO) if (re.test(desc)) { if (INCOME.includes(c) !== amount > 0) continue; return c; }
+  return amount > 0 ? 'otherinc' : 'health';
+}
 function parseCSV(text) {
   const rows = []; let row = [], cell = '', q = false;
   for (let i = 0; i < text.length; i++) {
@@ -972,8 +1171,8 @@ function renderLedger() {
       <div class="scroll"><table><thead><tr><th>Savings & investments</th><th>Type</th><th class="num">Balance</th><th></th></tr></thead><tbody>
       ${S.accounts.map(a => `<tr><td><input type="text" maxlength="80" id="an-${a.id}" value="${esc(a.name)}" aria-label="Account name"></td><td><select id="ak-${a.id}" aria-label="Account type"><option value="emergency" ${a.kind === 'emergency' ? 'selected' : ''}>Emergency fund</option><option value="invest" ${a.kind === 'invest' ? 'selected' : ''}>Investment</option></select></td><td class="num"><input type="number" id="ab-${a.id}" value="${a.balance}" step="any" style="width:110px" aria-label="Balance"></td><td><button class="linkbtn small" data-delacct="${a.id}">Remove</button></td></tr>`).join('')}
       </tbody></table></div><button class="btn sm" id="addacct" style="align-self:flex-start">Add account</button>
-      <div class="scroll"><table><thead><tr><th>Debt</th><th class="num">Balance</th><th class="num">APR %</th><th class="num">Min / mo</th><th></th></tr></thead><tbody>
-      ${S.debts.map(d => `<tr><td><input type="text" maxlength="80" id="dn-${d.id}" value="${esc(d.name)}" aria-label="Debt name"></td><td class="num"><input type="number" id="db-${d.id}" value="${d.balance}" step="any" style="width:100px" aria-label="Balance"></td><td class="num"><input type="number" id="da-${d.id}" value="${d.apr}" step="any" style="width:70px" aria-label="APR"></td><td class="num"><input type="number" id="dm-${d.id}" value="${d.min}" step="any" style="width:80px" aria-label="Minimum payment"></td><td><button class="linkbtn small" data-deldebt="${d.id}">Remove</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">No debts. Lucky you.</td></tr>'}
+      <div class="scroll"><table><thead><tr><th>Debt</th><th>Type</th><th class="num">Balance</th><th class="num">APR %</th><th class="num">Min / mo</th><th class="num">Card limit</th><th></th></tr></thead><tbody>
+      ${S.debts.map(d => `<tr><td><input type="text" maxlength="80" id="dn-${d.id}" value="${esc(d.name)}" aria-label="Debt name"></td><td><select id="dk-${d.id}" aria-label="Debt type">${Object.entries(DEBT_KINDS).map(([k, n]) => `<option value="${k}" ${d.kind === k ? 'selected' : ''}>${n}</option>`).join('')}</select></td><td class="num"><input type="number" id="db-${d.id}" value="${d.balance}" step="any" style="width:100px" aria-label="Balance"></td><td class="num"><input type="number" id="da-${d.id}" value="${d.apr}" step="any" style="width:70px" aria-label="APR"></td><td class="num"><input type="number" id="dm-${d.id}" value="${d.min}" step="any" style="width:80px" aria-label="Minimum payment"></td><td class="num"><input type="number" id="dl-${d.id}" value="${d.limit || ''}" placeholder="—" step="any" style="width:90px" aria-label="Credit limit"></td><td><button class="linkbtn small" data-deldebt="${d.id}">Remove</button></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No debts. Lucky you.</td></tr>'}
       </tbody></table></div>
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="adddebt">Add debt</button><button class="btn primary sm" id="saveaccts">Save accounts and debts</button></div></section>
     ${securityPanel()}
@@ -989,6 +1188,7 @@ function saveAccounts() {
     if (val('dn-' + d.id) === null) return;
     d.name = cleanText(val('dn-' + d.id), d.name); const nb = round2(clampNum(val('db-' + d.id), 0, MAX_AMT));
     d.balance = nb; d.start = Math.max(d.start || 0, nb); d.apr = clampNum(val('da-' + d.id), 0, 100); d.min = clampNum(val('dm-' + d.id), 0, MAX_AMT);
+    d.kind = Object.hasOwn(DEBT_KINDS, val('dk-' + d.id)) ? val('dk-' + d.id) : 'loan'; d.limit = round2(clampNum(val('dl-' + d.id), 0, MAX_AMT));
   });
   aggCache.clear();
 }
@@ -1014,7 +1214,7 @@ function securityPanel() {
 }
 
 /* ---------- router ---------- */
-const VIEWS = { kingdom: renderKingdom, 'money-map': renderMap, quests: renderQuests, advisor: renderAdvisor, ledger: renderLedger };
+const VIEWS = { kingdom: renderKingdom, realm: renderRealm, 'money-map': renderMap, quests: renderQuests, advisor: renderAdvisor, ledger: renderLedger };
 function current() { const h = location.hash.slice(1); return VIEWS[h] ? h : 'kingdom'; }
 function render() {
   if (!S) return renderLock();
@@ -1027,7 +1227,7 @@ function render() {
   VIEWS[v]();
 }
 addEventListener('hashchange', () => { render(); scrollTo({ top: 0 }); });
-let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (current() === 'money-map') drawMapCharts(); }, 150); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (current() === 'money-map') drawMapCharts(); else if (current() === 'realm') drawRealmCharts(); }, 150); });
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
@@ -1056,7 +1256,7 @@ document.addEventListener('click', e => {
   if (t.dataset.delacct) { saveAccounts(); S.accounts = S.accounts.filter(x => x.id !== t.dataset.delacct); commit(); return; }
   if (t.dataset.deldebt) { saveAccounts(); S.debts = S.debts.filter(x => x.id !== t.dataset.deldebt); commit(); return; }
   if (t.id === 'addacct') { saveAccounts(); S.accounts.push({ id: uid(), name: 'New account', kind: 'emergency', balance: 0 }); commit(); return; }
-  if (t.id === 'adddebt') { saveAccounts(); S.debts.push({ id: uid(), name: 'New debt', balance: 1000, start: 1000, apr: 20, min: 35 }); commit(); toast('Debt added. Set its real balance, rate and minimum, then save.'); return; }
+  if (t.id === 'adddebt') { saveAccounts(); S.debts.push({ id: uid(), name: 'New debt', kind: 'card', limit: 0, balance: 1000, start: 1000, apr: 20, min: 35 }); commit(); toast('Debt added. Set its real balance, rate and minimum, then save.'); return; }
   if (t.id === 'saveaccts') { saveAccounts(); commit(); toast('Accounts and debts saved.'); return; }
   if (t.id === 'csvgo') {
     const txt = $('#csvtext').value.trim(); if (!txt) { $('#csvmsg').textContent = 'Choose a file or paste CSV text first.'; return; }
@@ -1100,7 +1300,8 @@ document.addEventListener('submit', async e => {
   if (f.id === 'txform') {
     const amt = clampNum(Math.abs(Number($('#tx-amt').value)), 0, MAX_AMT); const desc = $('#tx-desc').value.trim(); if (!amt || !desc) return;
     const sign = $('#tx-type').value === 'in' ? 1 : -1; let cat = $('#tx-cat').value; if (cat === 'auto') cat = guessCat(desc, sign * amt);
-    if (sign > 0 && cat !== 'income') cat = 'income';
+    if (sign > 0 && !INCOME.includes(cat)) cat = guessCat(desc, 1);
+    if (sign < 0 && INCOME.includes(cat)) cat = guessCat(desc, -1);
     const date = $('#tx-date').value || todayStr();
     addTxn({ date, desc, amount: sign * amt, cat }, true); ledgerMonth = monthOf(date);
     gainXP(2, 'for logging ' + desc, f.querySelector('button')); commit(); toast(`Logged ${money(sign * amt, 2)} as ${CATS[cat].name}.`);
